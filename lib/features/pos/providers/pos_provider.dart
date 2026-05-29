@@ -66,12 +66,13 @@ class POSNotifier extends AsyncNotifier<void> {
   String get _businessId => ref.read(selectedBusinessProvider)!.id;
   String get _userId => ref.read(firebaseAuthProvider).currentUser!.uid;
 
-  Future<bool> scanBarcode(String barcode) async {
+  // Retorna: 'added' | 'not_found' | 'no_stock'
+  Future<String> scanBarcode(String barcode) async {
     final product = ref.read(productByBarcodeProvider(barcode));
-    if (product == null) return false;
-    if (product.stock <= 0) return false;
+    if (product == null) return 'not_found';
+    if (product.stock <= 0) return 'no_stock';
     ref.read(cartProvider.notifier).addProduct(product);
-    return true;
+    return 'added';
   }
 
   Future<void> checkout({
@@ -138,6 +139,8 @@ class POSNotifier extends AsyncNotifier<void> {
     });
     if (!state.hasError) state = const AsyncData(null);
   }
+
+  void resetState() => state = const AsyncData(null);
 }
 
 final posNotifierProvider = AsyncNotifierProvider<POSNotifier, void>(POSNotifier.new);

@@ -39,7 +39,20 @@ class ReportsScreen extends ConsumerWidget {
             child: salesAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(child: Text('Error: $e')),
-              data: (_) => SingleChildScrollView(
+              data: (sales) => sales.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.bar_chart_outlined,
+                              size: 64, color: AppTheme.onSurfaceMuted),
+                          const SizedBox(height: 16),
+                          Text('Sin ventas en este periodo',
+                              style: Theme.of(context).textTheme.titleLarge),
+                        ],
+                      ),
+                    )
+                  : SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   children: [

@@ -39,10 +39,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     } else if (state.hasError && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error: ${state.error}'),
+          content: Text('Error al registrar venta. Intenta nuevamente.'),
           backgroundColor: AppTheme.error,
         ),
       );
+      // Resetea el estado para que el boton vuelva a estar activo
+      ref.read(posNotifierProvider.notifier).resetState();
     }
   }
 
@@ -165,7 +167,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             name: nameCtrl.text,
             phone: phoneCtrl.text.isEmpty ? null : phoneCtrl.text,
           );
-      setState(() => _selectedClient = client);
+      if (mounted) setState(() => _selectedClient = client);
     }
   }
 

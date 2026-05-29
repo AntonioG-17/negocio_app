@@ -29,11 +29,7 @@ final lowStockProductsProvider = Provider<List<Product>>((ref) {
 
 final productByBarcodeProvider = Provider.family<Product?, String>((ref, barcode) {
   final products = ref.watch(productsStreamProvider).valueOrNull ?? [];
-  try {
-    return products.firstWhere((p) => p.barcode == barcode);
-  } catch (_) {
-    return null;
-  }
+  return products.where((p) => p.barcode == barcode).firstOrNull;
 });
 
 class InventoryNotifier extends AsyncNotifier<void> {

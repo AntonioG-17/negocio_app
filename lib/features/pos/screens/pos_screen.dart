@@ -28,17 +28,25 @@ class _POSScreenState extends ConsumerState<POSScreen> {
 
   Future<void> _onBarcodeDetected(String barcode) async {
     setState(() => _scannerActive = false);
-    final found = await ref.read(posNotifierProvider.notifier).scanBarcode(barcode);
-    if (!found && mounted) {
+    final result = await ref.read(posNotifierProvider.notifier).scanBarcode(barcode);
+    if (!mounted) return;
+    if (result == 'not_found') {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Codigo "$barcode" no encontrado'),
+          content: Text('Producto "$barcode" no encontrado'),
           backgroundColor: AppTheme.warning,
           action: SnackBarAction(
             label: 'Buscar',
             textColor: Colors.black,
             onPressed: _showManualSearch,
           ),
+        ),
+      );
+    } else if (result == 'no_stock') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Este producto no tiene stock disponible'),
+          backgroundColor: AppTheme.error,
         ),
       );
     }
