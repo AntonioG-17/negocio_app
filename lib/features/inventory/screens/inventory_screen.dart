@@ -6,7 +6,7 @@ import 'package:negocio_app/core/utils/formatters.dart';
 import 'package:negocio_app/features/inventory/models/product_model.dart';
 import 'package:negocio_app/features/inventory/providers/inventory_provider.dart';
 
-final _searchProvider = StateProvider<String>((ref) => '');
+final _searchProvider = StateProvider.autoDispose<String>((ref) => '');
 
 class InventoryScreen extends ConsumerStatefulWidget {
   const InventoryScreen({super.key});
@@ -19,7 +19,6 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
 
   @override
   void dispose() {
-    ref.read(_searchProvider.notifier).state = '';
     _searchCtrl.dispose();
     super.dispose();
   }

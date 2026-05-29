@@ -19,11 +19,16 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
   Future<void> _export() async {
     if (_exporting) return;
+
+    // Capturar posición ANTES de ocultar el botón con el spinner
+    final box = _exportBtnKey.currentContext?.findRenderObject() as RenderBox?;
+    final screenW = MediaQuery.sizeOf(context).width;
+    final origin = box != null
+        ? box.localToGlobal(Offset.zero) & box.size
+        : Rect.fromLTWH(screenW - 56, 0, 48, 56);
+
     setState(() => _exporting = true);
     try {
-      final box = _exportBtnKey.currentContext?.findRenderObject() as RenderBox?;
-      final origin = box != null ? box.localToGlobal(Offset.zero) & box.size : null;
-
       final period = ref.read(reportPeriodProvider);
       final sales = ref.read(reportSalesProvider).valueOrNull ?? [];
       final summary = ref.read(reportSummaryProvider);
