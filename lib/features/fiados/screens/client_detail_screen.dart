@@ -4,8 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:negocio_app/core/theme/app_theme.dart';
 import 'package:negocio_app/core/utils/formatters.dart';
+import 'package:negocio_app/features/auth/providers/auth_provider.dart';
 import 'package:negocio_app/features/fiados/models/client_model.dart';
 import 'package:negocio_app/features/fiados/providers/fiados_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ClientDetailScreen extends ConsumerWidget {
   final String clientId;
@@ -123,14 +125,61 @@ class ClientDetailScreen extends ConsumerWidget {
       bottomNavigationBar: client.totalDebt > 0
           ? Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
-              child: ElevatedButton.icon(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (client.phone != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: OutlinedButton.icon(
+                        onPressed: () => _sendReminder(context, ref, client),
+                        icon: const Icon(Icons.send_outlined),
+                        label: const Text('Enviar recordatorio'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppTheme.warning,
+                          side: const BorderSide(color: AppTheme.warning),
+                          minimumSize: const Size(double.infinity, 48),
+                        ),
+                      ),
+                    ),
+                  ElevatedButton.icon(
                 onPressed: () => _showAddPayment(context, ref, client),
                 icon: const Icon(Icons.add),
                 label: const Text('Registrar pago'),
               ),
+                ],
+              ),
             )
           : null,
     );
+  }
+
+  Future<void> _sendReminder(BuildContext context, WidgetRef ref, Client client) async {
+    final business = ref.read(selectedBusinessProvider);
+    final businessName = business?.name ?? 'el negocio';
+    final debt = formatCurrency(client.totalDebt);
+    final phone = client.phone!.replaceAll(RegExp(r'[^\d+]'), '');
+
+    final message = Uri.encodeComponent(
+      'Hola ${client.name}, te recordamos que tienes una deuda pendiente de $debt en $businessName. '
+      'Por favor acércate o comunícate con nosotros para coordinar el pago. ¡Muchas gracias!',
+    );
+
+    final whatsappUri = Uri.parse('https://wa.me/$phone?text=$message');
+    final smsUri = Uri.parse('sms:$phone?body=$message');
+
+    if (await canLaunchUrl(whatsappUri)) {
+      await launchUrl(whatsappUri, mode: LaunchMode.externalApplication);
+    } else if (await canLaunchUrl(smsUri)) {
+      await launchUrl(smsUri, mode: LaunchMode.externalApplication);
+    } else if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo abrir WhatsApp ni SMS'),
+          backgroundColor: AppTheme.error,
+        ),
+      );
+    }
   }
 
   void _showAddPayment(BuildContext context, WidgetRef ref, Client client) {

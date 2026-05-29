@@ -61,18 +61,28 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             const SizedBox(height: 16),
             Text('Venta registrada',
                 style: Theme.of(ctx).textTheme.titleLarge),
-            if (paymentType == PaymentType.fiado)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text('Fiado a $clientName',
-                    style: const TextStyle(color: AppTheme.warning)),
-              )
-            else if (paymentType == PaymentType.card)
-              const Padding(
-                padding: EdgeInsets.only(top: 8),
-                child: Text('Pagado con tarjeta',
-                    style: TextStyle(color: Color(0xFF4A90D9))),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: _paymentColor(paymentType).withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(20),
               ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(_paymentIcon(paymentType),
+                      color: _paymentColor(paymentType), size: 16),
+                  const SizedBox(width: 6),
+                  Text(
+                    _paymentLabel(paymentType, clientName),
+                    style: TextStyle(
+                        color: _paymentColor(paymentType),
+                        fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
         actions: [
@@ -84,6 +94,24 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       ),
     );
   }
+
+  Color _paymentColor(PaymentType t) => switch (t) {
+        PaymentType.cash => AppTheme.success,
+        PaymentType.card => const Color(0xFF4A90D9),
+        PaymentType.fiado => AppTheme.warning,
+      };
+
+  IconData _paymentIcon(PaymentType t) => switch (t) {
+        PaymentType.cash => Icons.payments_outlined,
+        PaymentType.card => Icons.credit_card_outlined,
+        PaymentType.fiado => Icons.person_outline,
+      };
+
+  String _paymentLabel(PaymentType t, String? clientName) => switch (t) {
+        PaymentType.cash => 'Pago en efectivo',
+        PaymentType.card => 'Pago con tarjeta',
+        PaymentType.fiado => 'Fiado a $clientName',
+      };
 
   void _selectClient() {
     final clients = ref.read(clientsStreamProvider).valueOrNull ?? [];
