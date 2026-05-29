@@ -48,7 +48,7 @@ final dashboardStatsProvider = Provider<DashboardStats>((ref) {
   final lowStockProducts = ref.watch(lowStockProductsProvider);
 
   final todayRevenue = todaySales
-      .where((s) => s.paymentType == PaymentType.cash)
+      .where((s) => s.paymentType != PaymentType.fiado)
       .fold<double>(0, (acc, s) => acc + s.total);
 
   return DashboardStats(

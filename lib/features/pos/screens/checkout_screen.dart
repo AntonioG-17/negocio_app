@@ -64,10 +64,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             if (_paymentType == PaymentType.fiado)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  'Fiado a ${_selectedClient?.name}',
-                  style: const TextStyle(color: AppTheme.warning),
-                ),
+                child: Text('Fiado a ${_selectedClient?.name}',
+                    style: const TextStyle(color: AppTheme.warning)),
+              )
+            else if (_paymentType == PaymentType.card)
+              const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Text('Pagado con tarjeta',
+                    style: TextStyle(color: Color(0xFF4A90D9))),
               ),
           ],
         ),
@@ -202,6 +206,19 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: _PaymentTypeCard(
+                    label: 'Tarjeta',
+                    icon: Icons.credit_card_outlined,
+                    selected: _paymentType == PaymentType.card,
+                    color: const Color(0xFF4A90D9),
+                    onTap: () => setState(() {
+                      _paymentType = PaymentType.card;
+                      _selectedClient = null;
+                    }),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _PaymentTypeCard(
                     label: 'Fiado',
                     icon: Icons.person_outline,
                     selected: _paymentType == PaymentType.fiado,
@@ -234,11 +251,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                   ? const SizedBox(
                       height: 20, width: 20,
                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
-                  : Text(
-                      _paymentType == PaymentType.fiado
-                          ? 'Registrar fiado'
-                          : 'Confirmar venta',
-                    ),
+                  : Text(switch (_paymentType) {
+                      PaymentType.fiado => 'Registrar fiado',
+                      PaymentType.card => 'Cobrar con tarjeta',
+                      PaymentType.cash => 'Confirmar venta',
+                    }),
             ),
           ],
         ),

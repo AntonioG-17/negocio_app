@@ -31,7 +31,7 @@ class SaleItem {
       );
 }
 
-enum PaymentType { cash, fiado }
+enum PaymentType { cash, card, fiado }
 
 class Sale {
   final String id;
@@ -66,7 +66,11 @@ class Sale {
           .map((e) => SaleItem.fromMap(e as Map<String, dynamic>))
           .toList(),
       total: (d['total'] as num).toDouble(),
-      paymentType: d['paymentType'] == 'fiado' ? PaymentType.fiado : PaymentType.cash,
+      paymentType: switch (d['paymentType']) {
+        'fiado' => PaymentType.fiado,
+        'card' => PaymentType.card,
+        _ => PaymentType.cash,
+      },
       clientId: d['clientId'] as String?,
       clientName: d['clientName'] as String?,
       createdAt: d['createdAt'] != null ? (d['createdAt'] as Timestamp).toDate() : DateTime.now(),
@@ -78,7 +82,11 @@ class Sale {
         'userId': userId,
         'items': items.map((i) => i.toMap()).toList(),
         'total': total,
-        'paymentType': paymentType == PaymentType.fiado ? 'fiado' : 'cash',
+        'paymentType': switch (paymentType) {
+          PaymentType.fiado => 'fiado',
+          PaymentType.card => 'card',
+          PaymentType.cash => 'cash',
+        },
         'clientId': clientId,
         'clientName': clientName,
         'createdAt': Timestamp.fromDate(createdAt),

@@ -55,23 +55,26 @@ class ReportSummary {
 final reportSummaryProvider = Provider<ReportSummary>((ref) {
   final sales = ref.watch(reportSalesProvider).valueOrNull ?? [];
   double cashRevenue = 0;
+  double cardRevenue = 0;
   double fiadoRevenue = 0;
   final Map<String, double> byDay = {};
 
   for (final sale in sales) {
-    final key =
-        '${sale.createdAt.day}/${sale.createdAt.month}';
+    final key = '${sale.createdAt.day}/${sale.createdAt.month}';
     byDay[key] = (byDay[key] ?? 0) + sale.total;
-    if (sale.paymentType == PaymentType.cash) {
-      cashRevenue += sale.total;
-    } else {
-      fiadoRevenue += sale.total;
+    switch (sale.paymentType) {
+      case PaymentType.cash:
+        cashRevenue += sale.total;
+      case PaymentType.card:
+        cardRevenue += sale.total;
+      case PaymentType.fiado:
+        fiadoRevenue += sale.total;
     }
   }
 
   return ReportSummary(
-    totalRevenue: cashRevenue + fiadoRevenue,
-    cashRevenue: cashRevenue,
+    totalRevenue: cashRevenue + cardRevenue + fiadoRevenue,
+    cashRevenue: cashRevenue + cardRevenue,
     fiadoRevenue: fiadoRevenue,
     totalSales: sales.length,
     revenueByDay: byDay,
