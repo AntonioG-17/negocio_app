@@ -1,5 +1,7 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:excel/excel.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -64,21 +66,25 @@ Future<void> exportReportToExcel({
   final bytes = excel.encode();
   if (bytes == null) throw Exception('No se pudo generar el archivo');
 
-  final dir = await getTemporaryDirectory();
   final now = DateTime.now();
   final name =
       'reporte_${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}.xlsx';
-  final file = File('${dir.path}/$name');
-  await file.writeAsBytes(bytes);
+  const mime =
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+  final XFile xfile;
+  if (kIsWeb) {
+    // En web creamos el XFile directo desde memoria (sin sistema de archivos)
+    xfile = XFile.fromData(Uint8List.fromList(bytes), name: name, mimeType: mime);
+  } else {
+    final dir = await getTemporaryDirectory();
+    final file = File('${dir.path}/$name');
+    await file.writeAsBytes(bytes);
+    xfile = XFile(file.path, mimeType: mime);
+  }
 
   await Share.shareXFiles(
-    [
-      XFile(
-        file.path,
-        mimeType:
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      )
-    ],
+    [xfile],
     subject: 'Reporte de ventas – $periodLabel',
     sharePositionOrigin: sharePositionOrigin,
   );
