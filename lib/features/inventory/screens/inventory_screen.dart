@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:negocio_app/core/theme/app_theme.dart';
 import 'package:negocio_app/core/utils/formatters.dart';
+import 'package:negocio_app/features/auth/models/user_model.dart';
+import 'package:negocio_app/features/auth/providers/auth_provider.dart';
 import 'package:negocio_app/features/inventory/models/product_model.dart';
 import 'package:negocio_app/features/inventory/providers/inventory_provider.dart';
 
@@ -27,6 +29,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   Widget build(BuildContext context) {
     final products = ref.watch(productsStreamProvider);
     final search = ref.watch(_searchProvider);
+    final role = ref.watch(currentUserRoleProvider);
+    final isWorker = role == UserRole.worker;
 
     return Scaffold(
       appBar: AppBar(
@@ -82,22 +86,25 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
             padding: const EdgeInsets.all(16),
             itemCount: filtered.length,
             separatorBuilder: (ctx, i) => const SizedBox(height: 8),
-            itemBuilder: (ctx, i) => _ProductTile(product: filtered[i]),
+            itemBuilder: (ctx, i) => _ProductTile(product: filtered[i], readOnly: isWorker),
           );
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.go('/inventory/add'),
-        icon: const Icon(Icons.add),
-        label: const Text('Agregar'),
-      ),
+      floatingActionButton: isWorker
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () => context.go('/inventory/add'),
+              icon: const Icon(Icons.add),
+              label: const Text('Agregar'),
+            ),
     );
   }
 }
 
 class _ProductTile extends ConsumerWidget {
   final Product product;
-  const _ProductTile({required this.product});
+  final bool readOnly;
+  const _ProductTile({required this.product, this.readOnly = false});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -152,7 +159,7 @@ class _ProductTile extends ConsumerWidget {
                   style: const TextStyle(fontSize: 11, color: AppTheme.onSurfaceMuted)),
           ],
         ),
-        onTap: () => context.go('/inventory/edit/${product.id}'),
+        onTap: readOnly ? null : () => context.go('/inventory/edit/${product.id}'),
       ),
     );
   }

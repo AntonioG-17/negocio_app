@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:negocio_app/core/theme/app_theme.dart';
 import 'package:negocio_app/core/utils/formatters.dart';
+import 'package:negocio_app/features/auth/models/user_model.dart';
 import 'package:negocio_app/features/auth/providers/auth_provider.dart';
 import 'package:negocio_app/features/dashboard/providers/dashboard_provider.dart';
 import 'package:negocio_app/features/fiados/providers/fiados_provider.dart';
@@ -18,6 +19,11 @@ class DashboardScreen extends ConsumerWidget {
     final stats = ref.watch(dashboardStatsProvider);
     final totalDebt = ref.watch(totalDebtProvider);
     final lowStock = ref.watch(lowStockProductsProvider);
+    final role = ref.watch(currentUserRoleProvider);
+    final profile = ref.watch(userProfileProvider).valueOrNull;
+
+    final isWorker = role == UserRole.worker;
+    final isAdmin = role == UserRole.admin;
 
     return Scaffold(
       appBar: AppBar(
@@ -31,6 +37,30 @@ class DashboardScreen extends ConsumerWidget {
           ],
         ),
         actions: [
+          // Rol badge
+          if (role != null)
+            Container(
+              margin: const EdgeInsets.only(right: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: _roleColor(role).withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                _roleLabel(role),
+                style: TextStyle(
+                    color: _roleColor(role),
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold),
+              ),
+            ),
+          // Admin: botón panel de equipo
+          if (isAdmin)
+            IconButton(
+              icon: const Icon(Icons.group_outlined),
+              tooltip: 'Equipo',
+              onPressed: () => context.go('/admin-panel'),
+            ),
           IconButton(
             icon: const Icon(Icons.logout_outlined),
             onPressed: () => ref.read(authNotifierProvider.notifier).logout(),
@@ -45,16 +75,31 @@ class DashboardScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Saludo para trabajador
+              if (isWorker && profile != null) ...[
+                Text(
+                  'Hola, ${profile.name}',
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleLarge
+                      ?.copyWith(color: AppTheme.primary),
+                ),
+                const SizedBox(height: 4),
+              ],
               Text(
-                'Hoy, ${formatDate(DateTime.now())}',
+                isWorker
+                    ? 'Tus ventas de hoy, ${formatDate(DateTime.now())}'
+                    : 'Hoy, ${formatDate(DateTime.now())}',
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
               const SizedBox(height: 16),
+
+              // Stats de ventas
               Row(
                 children: [
                   Expanded(
                     child: _StatCard(
-                      label: 'Ventas hoy',
+                      label: isWorker ? 'Mis ventas hoy' : 'Ventas hoy',
                       value: formatCurrency(stats.todayRevenue),
                       icon: Icons.trending_up,
                       color: AppTheme.success,
@@ -71,31 +116,37 @@ class DashboardScreen extends ConsumerWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _StatCard(
-                      label: 'Total fiados',
-                      value: formatCurrency(totalDebt),
-                      icon: Icons.people_outline,
-                      color: AppTheme.warning,
-                      onTap: () => context.go('/fiados'),
+
+              // Stats adicionales solo para admin
+              if (!isWorker) ...[
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _StatCard(
+                        label: 'Total fiados',
+                        value: formatCurrency(totalDebt),
+                        icon: Icons.people_outline,
+                        color: AppTheme.warning,
+                        onTap: () => context.go('/fiados'),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _StatCard(
-                      label: 'Stock bajo',
-                      value: '${lowStock.length} productos',
-                      icon: Icons.warning_amber_outlined,
-                      color: AppTheme.error,
-                      onTap: () => context.go('/inventory'),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _StatCard(
+                        label: 'Stock bajo',
+                        value: '${lowStock.length} productos',
+                        icon: Icons.warning_amber_outlined,
+                        color: AppTheme.error,
+                        onTap: () => context.go('/inventory'),
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              if (lowStock.isNotEmpty) ...[
+                  ],
+                ),
+              ],
+
+              // Stock bajo (solo admin)
+              if (!isWorker && lowStock.isNotEmpty) ...[
                 const SizedBox(height: 24),
                 Text('Productos con stock bajo',
                     style: Theme.of(context).textTheme.titleLarge),
@@ -114,16 +165,23 @@ class DashboardScreen extends ConsumerWidget {
                       ),
                     )),
               ],
+
+              // Últimas ventas
               const SizedBox(height: 24),
-              Text('Ultimas ventas', style: Theme.of(context).textTheme.titleLarge),
+              Text(
+                isWorker ? 'Mis últimas ventas' : 'Últimas ventas',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
               const SizedBox(height: 12),
               if (stats.recentSales.isEmpty)
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(24),
                     child: Center(
-                      child: Text('Sin ventas hoy',
-                          style: Theme.of(context).textTheme.bodyMedium),
+                      child: Text(
+                        isWorker ? 'Sin ventas hoy' : 'Sin ventas hoy',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
                     ),
                   ),
                 )
@@ -134,6 +192,22 @@ class DashboardScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Color _roleColor(UserRole role) {
+    return switch (role) {
+      UserRole.ceo => AppTheme.primary,
+      UserRole.admin => AppTheme.success,
+      UserRole.worker => AppTheme.onSurfaceMuted,
+    };
+  }
+
+  String _roleLabel(UserRole role) {
+    return switch (role) {
+      UserRole.ceo => 'CEO',
+      UserRole.admin => 'Admin',
+      UserRole.worker => 'Trabajador',
+    };
   }
 }
 
@@ -187,9 +261,21 @@ class _SaleTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (title, icon, color) = switch (sale.paymentType) {
-      PaymentType.fiado => ('Fiado – ${sale.clientName ?? ''}', Icons.person_outline, AppTheme.warning),
-      PaymentType.cash => ('Venta en efectivo', Icons.payments_outlined, AppTheme.success),
-      PaymentType.card => ('Venta con tarjeta', Icons.credit_card_outlined, const Color(0xFF4A90D9)),
+      PaymentType.fiado => (
+          'Fiado – ${sale.clientName ?? ''}',
+          Icons.person_outline,
+          AppTheme.warning
+        ),
+      PaymentType.cash => (
+          'Venta en efectivo',
+          Icons.payments_outlined,
+          AppTheme.success
+        ),
+      PaymentType.card => (
+          'Venta con tarjeta',
+          Icons.credit_card_outlined,
+          const Color(0xFF4A90D9)
+        ),
     };
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -201,7 +287,8 @@ class _SaleTile extends StatelessWidget {
         ),
         trailing: Text(
           formatCurrency(sale.total),
-          style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 16),
+          style: TextStyle(
+              color: color, fontWeight: FontWeight.bold, fontSize: 16),
         ),
       ),
     );

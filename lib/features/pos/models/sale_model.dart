@@ -37,6 +37,7 @@ class Sale {
   final String id;
   final String businessId;
   final String userId;
+  final String? userName;
   final List<SaleItem> items;
   final double total;
   final PaymentType paymentType;
@@ -48,6 +49,7 @@ class Sale {
     required this.id,
     required this.businessId,
     required this.userId,
+    this.userName,
     required this.items,
     required this.total,
     required this.paymentType,
@@ -62,6 +64,7 @@ class Sale {
       id: doc.id,
       businessId: d['businessId'] as String,
       userId: d['userId'] as String,
+      userName: d['userName'] as String?,
       items: (d['items'] as List<dynamic>)
           .map((e) => SaleItem.fromMap(e as Map<String, dynamic>))
           .toList(),
@@ -80,6 +83,7 @@ class Sale {
   Map<String, dynamic> toFirestore() => {
         'businessId': businessId,
         'userId': userId,
+        'userName': userName,
         'items': items.map((i) => i.toMap()).toList(),
         'total': total,
         'paymentType': switch (paymentType) {

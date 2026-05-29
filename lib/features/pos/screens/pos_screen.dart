@@ -16,41 +16,112 @@ class POSScreen extends ConsumerStatefulWidget {
   ConsumerState<POSScreen> createState() => _POSScreenState();
 }
 
-class _POSScreenState extends ConsumerState<POSScreen> {
+class _POSScreenState extends ConsumerState<POSScreen>
+    with WidgetsBindingObserver {
   bool _scannerActive = false;
   bool _isProcessingBarcode = false;
-  final _scannerCtrl = MobileScannerController();
+  late final MobileScannerController _scannerCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _scannerCtrl = MobileScannerController(
+      autoStart: false,
+      facing: CameraFacing.back,
+      formats: const [
+        BarcodeFormat.ean13,
+        BarcodeFormat.ean8,
+        BarcodeFormat.code128,
+        BarcodeFormat.upcA,
+        BarcodeFormat.upcE,
+        BarcodeFormat.qrCode,
+      ],
+    );
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!_scannerActive) return;
+    if (state == AppLifecycleState.paused) {
+      _scannerCtrl.stop();
+    } else if (state == AppLifecycleState.resumed) {
+      _scannerCtrl.start();
+    }
+  }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _scannerCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _toggleScanner() async {
+    if (_scannerActive) {
+      await _scannerCtrl.stop();
+      setState(() => _scannerActive = false);
+    } else {
+      setState(() => _scannerActive = true);
+      await _scannerCtrl.start();
+    }
   }
 
   Future<void> _onBarcodeDetected(String barcode) async {
     if (_isProcessingBarcode) return;
     _isProcessingBarcode = true;
+    await _scannerCtrl.stop();
     setState(() => _scannerActive = false);
     final result = await ref.read(posNotifierProvider.notifier).scanBarcode(barcode);
     _isProcessingBarcode = false;
     if (!mounted) return;
     if (result == 'not_found') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Producto "$barcode" no encontrado'),
-          backgroundColor: AppTheme.warning,
-          action: SnackBarAction(
-            label: 'Buscar',
-            textColor: Colors.black,
-            onPressed: _showManualSearch,
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.search_off, color: AppTheme.warning),
+              SizedBox(width: 8),
+              Text('Producto no encontrado'),
+            ],
           ),
+          content: Text(
+            'El código "$barcode" no existe en el inventario.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cerrar'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _showManualSearch();
+              },
+              child: const Text('Buscar manual'),
+            ),
+          ],
         ),
       );
     } else if (result == 'no_stock') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Este producto no tiene stock disponible'),
-          backgroundColor: AppTheme.error,
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.inventory_2_outlined, color: AppTheme.error),
+              SizedBox(width: 8),
+              Text('Sin stock'),
+            ],
+          ),
+          content: const Text('Este producto no tiene stock disponible.'),
+          actions: [
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cerrar'),
+            ),
+          ],
         ),
       );
     }
@@ -89,7 +160,7 @@ class _POSScreenState extends ConsumerState<POSScreen> {
             _ScannerWidget(
               controller: _scannerCtrl,
               onDetect: _onBarcodeDetected,
-              onClose: () => setState(() => _scannerActive = false),
+              onClose: _toggleScanner,
             ),
           Expanded(
             child: cart.isEmpty
@@ -118,7 +189,7 @@ class _POSScreenState extends ConsumerState<POSScreen> {
           _BottomBar(
             total: total,
             cartCount: cart.length,
-            onScan: () => setState(() => _scannerActive = !_scannerActive),
+            onScan: _toggleScanner,
             onSearch: _showManualSearch,
             onCheckout: () => context.go('/pos/checkout'),
           ),

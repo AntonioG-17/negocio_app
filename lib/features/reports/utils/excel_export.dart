@@ -40,6 +40,7 @@ Future<void> exportReportToExcel({
   detSheet.appendRow([
     TextCellValue('Fecha'),
     TextCellValue('Hora'),
+    TextCellValue('Trabajador'),
     TextCellValue('Productos'),
     TextCellValue('Total'),
     TextCellValue('Tipo de pago'),
@@ -56,6 +57,7 @@ Future<void> exportReportToExcel({
     detSheet.appendRow([
       TextCellValue(formatDate(sale.createdAt)),
       TextCellValue(formatTime(sale.createdAt)),
+      TextCellValue(sale.userName ?? '-'),
       TextCellValue(items),
       DoubleCellValue(sale.total),
       TextCellValue(payLabel),

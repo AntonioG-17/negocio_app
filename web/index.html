@@ -1,46 +1,72 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="NegocioApp">
 
-  <!-- iOS meta tags & icons -->
+  <!-- iOS PWA -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="negocio_app">
+  <meta name="apple-mobile-web-app-title" content="NegocioApp">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
-  <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
-
-  <title>negocio_app</title>
+  <title>NegocioApp</title>
   <link rel="manifest" href="manifest.json">
+
+  <script>
+    (async function () {
+      try {
+        // Siempre trae flutter_bootstrap.js directo de la red (nunca del caché HTTP)
+        const resp = await fetch('/flutter_bootstrap.js?_=' + Date.now(), { cache: 'no-store' });
+        const text = await resp.text();
+
+        // Extrae la versión del service worker embebida en el bootstrap
+        const match = text.match(/serviceWorkerVersion:\s*"(\d+)"/);
+        const version = match ? match[1] : String(Date.now());
+
+        // Guarda la versión y limpia caché si cambió
+        const storedVersion = localStorage.getItem('_app_version');
+        localStorage.setItem('_app_version', version);
+
+        if (storedVersion !== null && storedVersion !== version) {
+          if ('caches' in window) {
+            const keys = await caches.keys();
+            await Promise.all(keys.map(k => caches.delete(k)));
+          }
+          if ('serviceWorker' in navigator) {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(regs.map(r => r.unregister()));
+          }
+        }
+
+        // Parcha main.dart.js para incluir la versión en la URL
+        // → el browser lo trata como URL nueva y lo descarga de la red
+        const patched = text
+          .replace('"main.dart.js"', '"main.dart.js?v=' + version + '"')
+          .replace("'main.dart.js'", "'main.dart.js?v=" + version + "'")
+          .replace(/"mainJsPath":"main\.dart\.js"/, '"mainJsPath":"main.dart.js?v=' + version + '"');
+
+        // Ejecuta el bootstrap parcheado como blob (100% bypass del caché HTTP)
+        const blob = new Blob([patched], { type: 'application/javascript' });
+        const url = URL.createObjectURL(blob);
+        const s = document.createElement('script');
+        s.src = url;
+        s.onload = () => URL.revokeObjectURL(url);
+        document.head.appendChild(s);
+
+      } catch (e) {
+        console.warn('Version check failed, loading normally:', e);
+        const s = document.createElement('script');
+        s.src = 'flutter_bootstrap.js';
+        document.head.appendChild(s);
+      }
+    })();
+  </script>
 </head>
 <body>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
-
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
-  <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

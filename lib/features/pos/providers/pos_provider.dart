@@ -66,6 +66,7 @@ class POSNotifier extends AsyncNotifier<void> {
   FirebaseFirestore get _db => ref.read(firestoreProvider);
   String get _businessId => ref.read(selectedBusinessProvider)!.id;
   String get _userId => ref.read(firebaseAuthProvider).currentUser!.uid;
+  String? get _userName => ref.read(userProfileProvider).valueOrNull?.name;
 
   // Retorna: 'added' | 'not_found' | 'no_stock'
   Future<String> scanBarcode(String barcode) async {
@@ -100,6 +101,7 @@ class POSNotifier extends AsyncNotifier<void> {
         id: _uuid.v4(),
         businessId: _businessId,
         userId: _userId,
+        userName: _userName,
         items: items,
         total: total,
         paymentType: paymentType,
