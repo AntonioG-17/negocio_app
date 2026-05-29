@@ -28,11 +28,12 @@ final reportSalesProvider = FutureProvider<List<Sale>>((ref) async {
   final snap = await db
       .collection(AppConstants.colSales)
       .where('businessId', isEqualTo: business.id)
-      .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
-      .orderBy('createdAt', descending: true)
       .get();
 
-  return snap.docs.map(Sale.fromFirestore).toList();
+  final all = snap.docs.map(Sale.fromFirestore).toList();
+  final filtered = all.where((s) => s.createdAt.isAfter(startDate)).toList();
+  filtered.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+  return filtered;
 });
 
 class ReportSummary {
