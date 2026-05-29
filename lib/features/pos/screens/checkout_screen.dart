@@ -89,7 +89,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         ),
         actions: [
           ElevatedButton(
-            onPressed: () => ctx.go('/dashboard'),
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              context.go('/dashboard');
+            },
             child: const Text('Aceptar'),
           ),
         ],

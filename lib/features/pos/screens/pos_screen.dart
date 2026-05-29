@@ -18,6 +18,7 @@ class POSScreen extends ConsumerStatefulWidget {
 
 class _POSScreenState extends ConsumerState<POSScreen> {
   bool _scannerActive = false;
+  bool _isProcessingBarcode = false;
   final _scannerCtrl = MobileScannerController();
 
   @override
@@ -27,8 +28,11 @@ class _POSScreenState extends ConsumerState<POSScreen> {
   }
 
   Future<void> _onBarcodeDetected(String barcode) async {
+    if (_isProcessingBarcode) return;
+    _isProcessingBarcode = true;
     setState(() => _scannerActive = false);
     final result = await ref.read(posNotifierProvider.notifier).scanBarcode(barcode);
+    _isProcessingBarcode = false;
     if (!mounted) return;
     if (result == 'not_found') {
       ScaffoldMessenger.of(context).showSnackBar(

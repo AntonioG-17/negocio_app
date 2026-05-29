@@ -176,6 +176,16 @@ class ClientDetailScreen extends ConsumerWidget {
               onPressed: () async {
                 final amount = double.tryParse(amountCtrl.text);
                 if (amount == null || amount <= 0) return;
+                if (amount > client.totalDebt) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                          'El monto no puede superar la deuda (${formatCurrency(client.totalDebt)})'),
+                      backgroundColor: AppTheme.warning,
+                    ),
+                  );
+                  return;
+                }
                 await ref.read(fiadosNotifierProvider.notifier).addPayment(
                       clientId: client.id,
                       amount: amount,

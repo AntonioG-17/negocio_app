@@ -80,7 +80,7 @@ class ReportsScreen extends ConsumerWidget {
                       children: [
                         Expanded(
                           child: _StatBox(
-                            label: 'Efectivo',
+                            label: 'Cobrado',
                             value: formatCurrency(summary.cashRevenue),
                             color: AppTheme.success,
                           ),
@@ -222,7 +222,7 @@ class _SalesBreakdown extends StatelessWidget {
             Text('Distribucion de pagos',
                 style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 16),
-            _PctRow(label: 'Efectivo', pct: cashPct, color: AppTheme.success),
+            _PctRow(label: 'Cobrado (ef. + tarj.)', pct: cashPct, color: AppTheme.success),
             const SizedBox(height: 8),
             _PctRow(label: 'Fiados', pct: fiadoPct, color: AppTheme.warning),
           ],
