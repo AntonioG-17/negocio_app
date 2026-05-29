@@ -47,27 +47,27 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   }
 
   void _showSuccessDialog() {
+    final paymentType = _paymentType;
+    final clientName = _selectedClient?.name;
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         backgroundColor: AppTheme.surface,
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             const Icon(Icons.check_circle, color: AppTheme.success, size: 64),
             const SizedBox(height: 16),
-            Text(
-              'Venta registrada',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            if (_paymentType == PaymentType.fiado)
+            Text('Venta registrada',
+                style: Theme.of(ctx).textTheme.titleLarge),
+            if (paymentType == PaymentType.fiado)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
-                child: Text('Fiado a ${_selectedClient?.name}',
+                child: Text('Fiado a $clientName',
                     style: const TextStyle(color: AppTheme.warning)),
               )
-            else if (_paymentType == PaymentType.card)
+            else if (paymentType == PaymentType.card)
               const Padding(
                 padding: EdgeInsets.only(top: 8),
                 child: Text('Pagado con tarjeta',
@@ -77,10 +77,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         ),
         actions: [
           ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              context.go('/dashboard');
-            },
+            onPressed: () => ctx.go('/dashboard'),
             child: const Text('Aceptar'),
           ),
         ],

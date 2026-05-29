@@ -18,10 +18,13 @@ class CartNotifier extends Notifier<List<CartItem>> {
   void addProduct(Product product) {
     final idx = state.indexWhere((i) => i.product.id == product.id);
     if (idx != -1) {
+      final current = state[idx];
+      if (current.quantity >= product.stock) return; // no superar stock
       final updated = List<CartItem>.from(state);
       updated[idx].quantity++;
       state = updated;
     } else {
+      if (product.stock <= 0) return;
       state = [...state, CartItem(product: product)];
     }
   }
@@ -37,7 +40,8 @@ class CartNotifier extends Notifier<List<CartItem>> {
     }
     state = state.map((i) {
       if (i.product.id == productId) {
-        i.quantity = quantity;
+        final maxQty = i.product.stock;
+        i.quantity = quantity > maxQty ? maxQty : quantity;
       }
       return i;
     }).toList();
@@ -132,6 +136,7 @@ class POSNotifier extends AsyncNotifier<void> {
       await batch.commit();
       ref.read(cartProvider.notifier).clear();
     });
+    if (!state.hasError) state = const AsyncData(null);
   }
 }
 

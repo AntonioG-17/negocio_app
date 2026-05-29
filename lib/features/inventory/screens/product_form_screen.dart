@@ -175,7 +175,11 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                         prefixText: '\$ ',
                         prefixIcon: Icon(Icons.sell_outlined),
                       ),
-                      validator: (v) => (double.tryParse(v ?? '') == null) ? 'Precio invalido' : null,
+                      validator: (v) {
+                    final val = double.tryParse(v ?? '');
+                    if (val == null || val <= 0) return 'Ingresa un precio valido';
+                    return null;
+                  },
                     ),
                   ),
                   const SizedBox(width: 12),

@@ -223,8 +223,19 @@ class _CartTile extends ConsumerWidget {
                   ),
                 ),
                 IconButton(
-                  onPressed: () =>
-                      cart.updateQuantity(item.product.id, item.quantity + 1),
+                  onPressed: () {
+                    if (item.quantity >= item.product.stock) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Stock maximo: ${item.product.stock}'),
+                          backgroundColor: AppTheme.warning,
+                          duration: const Duration(seconds: 1),
+                        ),
+                      );
+                      return;
+                    }
+                    cart.updateQuantity(item.product.id, item.quantity + 1);
+                  },
                   icon: const Icon(Icons.add_circle_outline),
                   color: AppTheme.success,
                   iconSize: 22,
@@ -392,8 +403,14 @@ class _ManualSearchSheetState extends ConsumerState<_ManualSearchSheet> {
                   final p = filtered[i];
                   return Card(
                     child: ListTile(
-                      title: Text(p.name),
-                      subtitle: Text('Stock: ${p.stock}'),
+                      title: Text(p.name,
+                          style: TextStyle(
+                              color: p.stock <= 0 ? AppTheme.onSurfaceMuted : null)),
+                      subtitle: Text(
+                        p.stock <= 0 ? 'Sin stock' : 'Stock: ${p.stock}',
+                        style: TextStyle(
+                            color: p.stock <= 0 ? AppTheme.error : AppTheme.onSurfaceMuted),
+                      ),
                       trailing: Text(
                         formatCurrency(p.price),
                         style: const TextStyle(
