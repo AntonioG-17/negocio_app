@@ -32,20 +32,6 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Inventario'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.science_outlined),
-            tooltip: 'Cargar datos demo',
-            onPressed: () async {
-              await ref.read(inventoryNotifierProvider.notifier).seedDemoProducts();
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('10 productos demo agregados')),
-                );
-              }
-            },
-          ),
-        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(60),
           child: Padding(

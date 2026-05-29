@@ -4,18 +4,69 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:negocio_app/core/theme/app_theme.dart';
 import 'package:negocio_app/core/utils/formatters.dart';
 import 'package:negocio_app/features/reports/providers/reports_provider.dart';
+import 'package:negocio_app/features/reports/utils/excel_export.dart';
 
-class ReportsScreen extends ConsumerWidget {
+class ReportsScreen extends ConsumerStatefulWidget {
   const ReportsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ReportsScreen> createState() => _ReportsScreenState();
+}
+
+class _ReportsScreenState extends ConsumerState<ReportsScreen> {
+  bool _exporting = false;
+
+  Future<void> _export() async {
+    if (_exporting) return;
+    setState(() => _exporting = true);
+    try {
+      final period = ref.read(reportPeriodProvider);
+      final sales = ref.read(reportSalesProvider).valueOrNull ?? [];
+      final summary = ref.read(reportSummaryProvider);
+      await exportReportToExcel(period: period, sales: sales, summary: summary);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al exportar: $e'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final period = ref.watch(reportPeriodProvider);
     final summary = ref.watch(reportSummaryProvider);
     final salesAsync = ref.watch(reportSalesProvider);
+    final hasSales = salesAsync.valueOrNull?.isNotEmpty == true;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Reportes')),
+      appBar: AppBar(
+        title: const Text('Reportes'),
+        actions: [
+          if (hasSales)
+            _exporting
+                ? const Padding(
+                    padding: EdgeInsets.all(14),
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: AppTheme.primary),
+                    ),
+                  )
+                : IconButton(
+                    icon: const Icon(Icons.file_download_outlined),
+                    tooltip: 'Exportar Excel',
+                    onPressed: _export,
+                  ),
+        ],
+      ),
       body: Column(
         children: [
           Padding(
