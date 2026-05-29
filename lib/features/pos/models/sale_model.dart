@@ -69,7 +69,7 @@ class Sale {
       paymentType: d['paymentType'] == 'fiado' ? PaymentType.fiado : PaymentType.cash,
       clientId: d['clientId'] as String?,
       clientName: d['clientName'] as String?,
-      createdAt: (d['createdAt'] as Timestamp).toDate(),
+      createdAt: d['createdAt'] != null ? (d['createdAt'] as Timestamp).toDate() : DateTime.now(),
     );
   }
 

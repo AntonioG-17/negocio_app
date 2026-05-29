@@ -14,9 +14,12 @@ final productsStreamProvider = StreamProvider<List<Product>>((ref) {
   return db
       .collection(AppConstants.colProducts)
       .where('businessId', isEqualTo: business.id)
-      .orderBy('name')
       .snapshots()
-      .map((snap) => snap.docs.map(Product.fromFirestore).toList());
+      .map((snap) {
+        final list = snap.docs.map(Product.fromFirestore).toList();
+        list.sort((a, b) => a.name.compareTo(b.name));
+        return list;
+      });
 });
 
 final lowStockProductsProvider = Provider<List<Product>>((ref) {

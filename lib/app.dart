@@ -23,7 +23,9 @@ final routerProvider = Provider<GoRouter>((ref) {
 
   return GoRouter(
     navigatorKey: _rootKey,
+    initialLocation: '/login',
     redirect: (context, state) {
+      if (authState.isLoading) return null;
       final isLoggedIn = authState.valueOrNull != null;
       final hasBusiness = selectedBusiness != null;
       final path = state.matchedLocation;

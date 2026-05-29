@@ -27,8 +27,8 @@ class Client {
       name: d['name'] as String,
       phone: d['phone'] as String?,
       totalDebt: (d['totalDebt'] as num? ?? 0).toDouble(),
-      createdAt: (d['createdAt'] as Timestamp).toDate(),
-      updatedAt: (d['updatedAt'] as Timestamp).toDate(),
+      createdAt: d['createdAt'] != null ? (d['createdAt'] as Timestamp).toDate() : DateTime.now(),
+      updatedAt: d['updatedAt'] != null ? (d['updatedAt'] as Timestamp).toDate() : DateTime.now(),
     );
   }
 
@@ -79,7 +79,7 @@ class FiadoPayment {
       businessId: d['businessId'] as String,
       amount: (d['amount'] as num).toDouble(),
       note: d['note'] as String?,
-      createdAt: (d['createdAt'] as Timestamp).toDate(),
+      createdAt: d['createdAt'] != null ? (d['createdAt'] as Timestamp).toDate() : DateTime.now(),
     );
   }
 

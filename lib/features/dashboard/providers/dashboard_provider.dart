@@ -33,9 +33,12 @@ final todaySalesProvider = StreamProvider<List<Sale>>((ref) {
       .collection(AppConstants.colSales)
       .where('businessId', isEqualTo: business.id)
       .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
-      .orderBy('createdAt', descending: true)
       .snapshots()
-      .map((snap) => snap.docs.map(Sale.fromFirestore).toList());
+      .map((snap) {
+        final list = snap.docs.map(Sale.fromFirestore).toList();
+        list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        return list;
+      });
 });
 
 final dashboardStatsProvider = Provider<DashboardStats>((ref) {

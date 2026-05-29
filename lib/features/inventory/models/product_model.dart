@@ -44,8 +44,8 @@ class Product {
       minStock: (d['minStock'] as num? ?? 5).toInt(),
       category: d['category'] as String?,
       hasBarcode: d['hasBarcode'] as bool? ?? false,
-      createdAt: (d['createdAt'] as Timestamp).toDate(),
-      updatedAt: (d['updatedAt'] as Timestamp).toDate(),
+      createdAt: d['createdAt'] != null ? (d['createdAt'] as Timestamp).toDate() : DateTime.now(),
+      updatedAt: d['updatedAt'] != null ? (d['updatedAt'] as Timestamp).toDate() : DateTime.now(),
     );
   }
 

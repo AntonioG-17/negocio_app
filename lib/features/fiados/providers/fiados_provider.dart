@@ -14,9 +14,12 @@ final clientsStreamProvider = StreamProvider<List<Client>>((ref) {
   return db
       .collection(AppConstants.colClients)
       .where('businessId', isEqualTo: business.id)
-      .orderBy('name')
       .snapshots()
-      .map((snap) => snap.docs.map(Client.fromFirestore).toList());
+      .map((snap) {
+        final list = snap.docs.map(Client.fromFirestore).toList();
+        list.sort((a, b) => a.name.compareTo(b.name));
+        return list;
+      });
 });
 
 final clientPaymentsProvider = StreamProvider.family<List<FiadoPayment>, String>((ref, clientId) {
@@ -24,9 +27,12 @@ final clientPaymentsProvider = StreamProvider.family<List<FiadoPayment>, String>
   return db
       .collection(AppConstants.colPayments)
       .where('clientId', isEqualTo: clientId)
-      .orderBy('createdAt', descending: true)
       .snapshots()
-      .map((snap) => snap.docs.map(FiadoPayment.fromFirestore).toList());
+      .map((snap) {
+        final list = snap.docs.map(FiadoPayment.fromFirestore).toList();
+        list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        return list;
+      });
 });
 
 final totalDebtProvider = Provider<double>((ref) {
