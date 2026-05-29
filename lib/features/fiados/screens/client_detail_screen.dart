@@ -4,11 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:negocio_app/core/theme/app_theme.dart';
 import 'package:negocio_app/core/utils/formatters.dart';
-import 'package:negocio_app/features/auth/providers/auth_provider.dart';
 import 'package:negocio_app/features/fiados/models/client_model.dart';
 import 'package:negocio_app/features/fiados/providers/fiados_provider.dart';
-import 'package:negocio_app/core/config/telegram_config.dart';
-import 'package:negocio_app/core/services/telegram_service.dart';
 
 class ClientDetailScreen extends ConsumerWidget {
   final String clientId;
@@ -126,102 +123,13 @@ class ClientDetailScreen extends ConsumerWidget {
       bottomNavigationBar: client.totalDebt > 0
           ? Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (client.hasTelegram)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: OutlinedButton.icon(
-                        onPressed: () => _sendReminder(context, ref, client),
-                        icon: const Icon(Icons.send_rounded),
-                        label: const Text('Enviar recordatorio por Telegram'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFF2AABEE),
-                          side: const BorderSide(color: Color(0xFF2AABEE)),
-                          minimumSize: const Size(double.infinity, 48),
-                        ),
-                      ),
-                    ),
-                  ElevatedButton.icon(
+              child: ElevatedButton.icon(
                 onPressed: () => _showAddPayment(context, ref, client),
                 icon: const Icon(Icons.add),
                 label: const Text('Registrar pago'),
               ),
-                ],
-              ),
             )
           : null,
-    );
-  }
-
-  Future<void> _sendReminder(BuildContext context, WidgetRef ref, Client client) async {
-    if (!TelegramConfig.isConfigured) {
-      _showSetupDialog(context);
-      return;
-    }
-    final business = ref.read(selectedBusinessProvider);
-    final businessName = business?.name ?? 'el negocio';
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Row(children: [
-          SizedBox(width: 16, height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
-          SizedBox(width: 12),
-          Text('Enviando mensaje...'),
-        ]),
-        duration: Duration(seconds: 10),
-      ),
-    );
-
-    try {
-      await TelegramService.sendReminder(
-        chatId: client.telegramChatId!,
-        clientName: client.name,
-        businessName: businessName,
-        debt: client.totalDebt,
-      );
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Mensaje enviado a ${client.name} por Telegram'),
-            backgroundColor: AppTheme.success,
-          ),
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: AppTheme.error,
-          ),
-        );
-      }
-    }
-  }
-
-  void _showSetupDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppTheme.surface,
-        title: const Text('Configurar Telegram'),
-        content: const Text(
-          'Para enviar mensajes automaticos necesitas configurar el bot de Telegram.\n\n'
-          'Sigue las instrucciones en:\ndocs/telegram-setup.md\n\n'
-          'Es gratis y tarda 2 minutos.',
-        ),
-        actions: [
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Entendido'),
-          ),
-        ],
-      ),
     );
   }
 

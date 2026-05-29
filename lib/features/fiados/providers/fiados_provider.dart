@@ -47,18 +47,13 @@ class FiadosNotifier extends AsyncNotifier<void> {
   FirebaseFirestore get _db => ref.read(firestoreProvider);
   String get _businessId => ref.read(selectedBusinessProvider)!.id;
 
-  Future<Client> addClient({
-    required String name,
-    String? phone,
-    String? telegramChatId,
-  }) async {
+  Future<Client> addClient({required String name, String? phone}) async {
     final now = DateTime.now();
     final client = Client(
       id: _uuid.v4(),
       businessId: _businessId,
       name: name.trim(),
       phone: phone?.trim().isEmpty == true ? null : phone?.trim(),
-      telegramChatId: telegramChatId?.trim().isEmpty == true ? null : telegramChatId?.trim(),
       totalDebt: 0,
       createdAt: now,
       updatedAt: now,

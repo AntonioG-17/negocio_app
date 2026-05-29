@@ -79,38 +79,26 @@ class FiadosScreen extends ConsumerWidget {
   void _showAddClientDialog(BuildContext context, WidgetRef ref) {
     final nameCtrl = TextEditingController();
     final phoneCtrl = TextEditingController();
-    final telegramCtrl = TextEditingController();
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppTheme.surface,
         title: const Text('Nuevo cliente'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameCtrl,
-                autofocus: true,
-                decoration: const InputDecoration(labelText: 'Nombre *'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: phoneCtrl,
-                keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(labelText: 'Telefono (opcional)'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: telegramCtrl,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Telegram Chat ID (opcional)',
-                  helperText: 'El cliente lo obtiene escribiendo /start al bot',
-                ),
-              ),
-            ],
-          ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameCtrl,
+              autofocus: true,
+              decoration: const InputDecoration(labelText: 'Nombre *'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: phoneCtrl,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(labelText: 'Telefono (opcional)'),
+            ),
+          ],
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
@@ -120,7 +108,6 @@ class FiadosScreen extends ConsumerWidget {
               await ref.read(fiadosNotifierProvider.notifier).addClient(
                     name: nameCtrl.text,
                     phone: phoneCtrl.text.isEmpty ? null : phoneCtrl.text,
-                    telegramChatId: telegramCtrl.text.isEmpty ? null : telegramCtrl.text,
                   );
               if (ctx.mounted) Navigator.pop(ctx);
             },
