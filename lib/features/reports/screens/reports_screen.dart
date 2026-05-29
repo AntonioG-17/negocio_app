@@ -15,15 +15,24 @@ class ReportsScreen extends ConsumerStatefulWidget {
 
 class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   bool _exporting = false;
+  final _exportBtnKey = GlobalKey();
 
   Future<void> _export() async {
     if (_exporting) return;
     setState(() => _exporting = true);
     try {
+      final box = _exportBtnKey.currentContext?.findRenderObject() as RenderBox?;
+      final origin = box != null ? box.localToGlobal(Offset.zero) & box.size : null;
+
       final period = ref.read(reportPeriodProvider);
       final sales = ref.read(reportSalesProvider).valueOrNull ?? [];
       final summary = ref.read(reportSummaryProvider);
-      await exportReportToExcel(period: period, sales: sales, summary: summary);
+      await exportReportToExcel(
+        period: period,
+        sales: sales,
+        summary: summary,
+        sharePositionOrigin: origin,
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -61,6 +70,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                     ),
                   )
                 : IconButton(
+                    key: _exportBtnKey,
                     icon: const Icon(Icons.file_download_outlined),
                     tooltip: 'Exportar Excel',
                     onPressed: _export,

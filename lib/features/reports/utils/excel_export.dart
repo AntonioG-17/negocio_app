@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:excel/excel.dart';
+import 'package:flutter/widgets.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:negocio_app/core/utils/formatters.dart';
@@ -10,6 +11,7 @@ Future<void> exportReportToExcel({
   required ReportPeriod period,
   required List<Sale> sales,
   required ReportSummary summary,
+  Rect? sharePositionOrigin,
 }) async {
   final excel = Excel.createExcel();
 
@@ -78,5 +80,6 @@ Future<void> exportReportToExcel({
       )
     ],
     subject: 'Reporte de ventas – $periodLabel',
+    sharePositionOrigin: sharePositionOrigin,
   );
 }
