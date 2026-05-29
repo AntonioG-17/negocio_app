@@ -5,6 +5,7 @@ class Client {
   final String businessId;
   final String name;
   final String? phone;
+  final String? telegramChatId;
   final double totalDebt;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -14,10 +15,13 @@ class Client {
     required this.businessId,
     required this.name,
     this.phone,
+    this.telegramChatId,
     required this.totalDebt,
     required this.createdAt,
     required this.updatedAt,
   });
+
+  bool get hasTelegram => telegramChatId != null && telegramChatId!.isNotEmpty;
 
   factory Client.fromFirestore(DocumentSnapshot doc) {
     final d = doc.data() as Map<String, dynamic>;
@@ -26,6 +30,7 @@ class Client {
       businessId: d['businessId'] as String,
       name: d['name'] as String,
       phone: d['phone'] as String?,
+      telegramChatId: d['telegramChatId'] as String?,
       totalDebt: (d['totalDebt'] as num? ?? 0).toDouble(),
       createdAt: d['createdAt'] != null ? (d['createdAt'] as Timestamp).toDate() : DateTime.now(),
       updatedAt: d['updatedAt'] != null ? (d['updatedAt'] as Timestamp).toDate() : DateTime.now(),
@@ -36,17 +41,19 @@ class Client {
         'businessId': businessId,
         'name': name,
         'phone': phone,
+        'telegramChatId': telegramChatId,
         'totalDebt': totalDebt,
         'createdAt': Timestamp.fromDate(createdAt),
         'updatedAt': Timestamp.fromDate(updatedAt),
       };
 
-  Client copyWith({String? name, String? phone, double? totalDebt}) {
+  Client copyWith({String? name, String? phone, String? telegramChatId, double? totalDebt}) {
     return Client(
       id: id,
       businessId: businessId,
       name: name ?? this.name,
       phone: phone ?? this.phone,
+      telegramChatId: telegramChatId ?? this.telegramChatId,
       totalDebt: totalDebt ?? this.totalDebt,
       createdAt: createdAt,
       updatedAt: DateTime.now(),

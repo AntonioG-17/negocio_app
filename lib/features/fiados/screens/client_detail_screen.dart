@@ -7,8 +7,8 @@ import 'package:negocio_app/core/utils/formatters.dart';
 import 'package:negocio_app/features/auth/providers/auth_provider.dart';
 import 'package:negocio_app/features/fiados/models/client_model.dart';
 import 'package:negocio_app/features/fiados/providers/fiados_provider.dart';
-import 'package:negocio_app/core/config/twilio_config.dart';
-import 'package:negocio_app/core/services/sms_service.dart';
+import 'package:negocio_app/core/config/telegram_config.dart';
+import 'package:negocio_app/core/services/telegram_service.dart';
 
 class ClientDetailScreen extends ConsumerWidget {
   final String clientId;
@@ -129,16 +129,16 @@ class ClientDetailScreen extends ConsumerWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (client.phone != null)
+                  if (client.hasTelegram)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 10),
                       child: OutlinedButton.icon(
                         onPressed: () => _sendReminder(context, ref, client),
-                        icon: const Icon(Icons.send_outlined),
-                        label: const Text('Enviar recordatorio'),
+                        icon: const Icon(Icons.send_rounded),
+                        label: const Text('Enviar recordatorio por Telegram'),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: AppTheme.warning,
-                          side: const BorderSide(color: AppTheme.warning),
+                          foregroundColor: const Color(0xFF2AABEE),
+                          side: const BorderSide(color: Color(0xFF2AABEE)),
                           minimumSize: const Size(double.infinity, 48),
                         ),
                       ),
@@ -156,8 +156,8 @@ class ClientDetailScreen extends ConsumerWidget {
   }
 
   Future<void> _sendReminder(BuildContext context, WidgetRef ref, Client client) async {
-    if (!TwilioConfig.isConfigured) {
-      _showTwilioSetupDialog(context);
+    if (!TelegramConfig.isConfigured) {
+      _showSetupDialog(context);
       return;
     }
     final business = ref.read(selectedBusinessProvider);
@@ -169,15 +169,15 @@ class ClientDetailScreen extends ConsumerWidget {
           SizedBox(width: 16, height: 16,
               child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
           SizedBox(width: 12),
-          Text('Enviando SMS...'),
+          Text('Enviando mensaje...'),
         ]),
         duration: Duration(seconds: 10),
       ),
     );
 
     try {
-      await SmsService.sendReminder(
-        phone: client.phone!,
+      await TelegramService.sendReminder(
+        chatId: client.telegramChatId!,
         clientName: client.name,
         businessName: businessName,
         debt: client.totalDebt,
@@ -186,7 +186,7 @@ class ClientDetailScreen extends ConsumerWidget {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('SMS enviado a ${client.name}'),
+            content: Text('Mensaje enviado a ${client.name} por Telegram'),
             backgroundColor: AppTheme.success,
           ),
         );
@@ -204,15 +204,16 @@ class ClientDetailScreen extends ConsumerWidget {
     }
   }
 
-  void _showTwilioSetupDialog(BuildContext context) {
+  void _showSetupDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppTheme.surface,
-        title: const Text('Configurar SMS'),
+        title: const Text('Configurar Telegram'),
         content: const Text(
-          'Para enviar SMS automaticos necesitas configurar Twilio.\n\n'
-          'Sigue las instrucciones en:\ndocs/twilio-setup.md',
+          'Para enviar mensajes automaticos necesitas configurar el bot de Telegram.\n\n'
+          'Sigue las instrucciones en:\ndocs/telegram-setup.md\n\n'
+          'Es gratis y tarda 2 minutos.',
         ),
         actions: [
           ElevatedButton(
