@@ -23,9 +23,9 @@ class FiadosScreen extends ConsumerWidget {
             margin: const EdgeInsets.all(16),
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: AppTheme.warning.withOpacity(0.1),
+              color: AppTheme.warning.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppTheme.warning.withOpacity(0.3)),
+              border: Border.all(color: AppTheme.warning.withValues(alpha: 0.3)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -61,7 +61,7 @@ class FiadosScreen extends ConsumerWidget {
                   : ListView.separated(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       itemCount: list.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      separatorBuilder: (ctx, i) => const SizedBox(height: 8),
                       itemBuilder: (ctx, i) => _ClientTile(client: list[i]),
                     ),
             ),
@@ -129,7 +129,7 @@ class _ClientTile extends StatelessWidget {
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: CircleAvatar(
-          backgroundColor: AppTheme.warning.withOpacity(0.15),
+          backgroundColor: AppTheme.warning.withValues(alpha: 0.15),
           child: Text(
             client.name.substring(0, 1).toUpperCase(),
             style: const TextStyle(color: AppTheme.warning, fontWeight: FontWeight.bold),

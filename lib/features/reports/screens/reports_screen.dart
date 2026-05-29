@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:negocio_app/core/theme/app_theme.dart';
 import 'package:negocio_app/core/utils/formatters.dart';
-import 'package:negocio_app/features/pos/models/sale_model.dart';
 import 'package:negocio_app/features/reports/providers/reports_provider.dart';
 
 class ReportsScreen extends ConsumerWidget {

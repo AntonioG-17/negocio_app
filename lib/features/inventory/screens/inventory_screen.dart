@@ -68,7 +68,7 @@ class InventoryScreen extends ConsumerWidget {
           return ListView.separated(
             padding: const EdgeInsets.all(16),
             itemCount: filtered.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            separatorBuilder: (ctx, i) => const SizedBox(height: 8),
             itemBuilder: (ctx, i) => _ProductTile(product: filtered[i]),
           );
         },
@@ -96,8 +96,8 @@ class _ProductTile extends ConsumerWidget {
           height: 44,
           decoration: BoxDecoration(
             color: product.isLowStock
-                ? AppTheme.error.withOpacity(0.15)
-                : AppTheme.primary.withOpacity(0.1),
+                ? AppTheme.error.withValues(alpha: 0.15)
+                : AppTheme.primary.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(

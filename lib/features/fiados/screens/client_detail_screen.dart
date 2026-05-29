@@ -46,7 +46,7 @@ class ClientDetailScreen extends ConsumerWidget {
                   children: [
                     CircleAvatar(
                       radius: 30,
-                      backgroundColor: AppTheme.warning.withOpacity(0.15),
+                      backgroundColor: AppTheme.warning.withValues(alpha: 0.15),
                       child: Text(
                         client.name.substring(0, 1).toUpperCase(),
                         style: const TextStyle(
@@ -212,7 +212,7 @@ class ClientDetailScreen extends ConsumerWidget {
     );
     if (confirm == true && context.mounted) {
       await ref.read(fiadosNotifierProvider.notifier).deleteClient(client.id);
-      context.pop();
+      if (context.mounted) context.pop();
     }
   }
 }

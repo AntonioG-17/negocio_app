@@ -28,7 +28,7 @@ class BusinessSelectScreen extends ConsumerWidget {
             : ListView.separated(
                 padding: const EdgeInsets.all(20),
                 itemCount: list.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                separatorBuilder: (ctx, i) => const SizedBox(height: 12),
                 itemBuilder: (context, i) {
                   final biz = list[i];
                   return Card(
@@ -38,7 +38,7 @@ class BusinessSelectScreen extends ConsumerWidget {
                         width: 48,
                         height: 48,
                         decoration: BoxDecoration(
-                          color: AppTheme.primary.withOpacity(0.15),
+                          color: AppTheme.primary.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Icon(Icons.store, color: AppTheme.primary),

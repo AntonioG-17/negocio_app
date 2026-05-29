@@ -38,18 +38,18 @@ final routerProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
-      GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
-      GoRoute(path: '/select-business', builder: (_, __) => const BusinessSelectScreen()),
+      GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
+      GoRoute(path: '/select-business', builder: (_, _) => const BusinessSelectScreen()),
       ShellRoute(
         navigatorKey: _shellKey,
         builder: (context, state, child) => AppShell(child: child),
         routes: [
-          GoRoute(path: '/dashboard', builder: (_, __) => const DashboardScreen()),
+          GoRoute(path: '/dashboard', builder: (_, _) => const DashboardScreen()),
           GoRoute(
             path: '/inventory',
-            builder: (_, __) => const InventoryScreen(),
+            builder: (_, _) => const InventoryScreen(),
             routes: [
-              GoRoute(path: 'add', builder: (_, __) => const ProductFormScreen()),
+              GoRoute(path: 'add', builder: (_, _) => const ProductFormScreen()),
               GoRoute(
                 path: 'edit/:id',
                 builder: (_, state) =>
@@ -59,14 +59,14 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/pos',
-            builder: (_, __) => const POSScreen(),
+            builder: (_, _) => const POSScreen(),
             routes: [
-              GoRoute(path: 'checkout', builder: (_, __) => const CheckoutScreen()),
+              GoRoute(path: 'checkout', builder: (_, _) => const CheckoutScreen()),
             ],
           ),
           GoRoute(
             path: '/fiados',
-            builder: (_, __) => const FiadosScreen(),
+            builder: (_, _) => const FiadosScreen(),
             routes: [
               GoRoute(
                 path: ':clientId',
@@ -75,7 +75,7 @@ final routerProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
-          GoRoute(path: '/reports', builder: (_, __) => const ReportsScreen()),
+          GoRoute(path: '/reports', builder: (_, _) => const ReportsScreen()),
         ],
       ),
     ],

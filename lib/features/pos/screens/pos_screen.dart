@@ -99,7 +99,7 @@ class _POSScreenState extends ConsumerState<POSScreen> {
                 : ListView.separated(
                     padding: const EdgeInsets.all(16),
                     itemCount: cart.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    separatorBuilder: (ctx, i) => const SizedBox(height: 8),
                     itemBuilder: (ctx, i) => _CartTile(item: cart[i]),
                   ),
           ),
@@ -387,7 +387,7 @@ class _ManualSearchSheetState extends ConsumerState<_ManualSearchSheet> {
                 controller: scrollCtrl,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 itemCount: filtered.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                separatorBuilder: (ctx, i) => const SizedBox(height: 8),
                 itemBuilder: (ctx, i) {
                   final p = filtered[i];
                   return Card(

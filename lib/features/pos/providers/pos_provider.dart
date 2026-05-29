@@ -45,7 +45,7 @@ class CartNotifier extends Notifier<List<CartItem>> {
 
   void clear() => state = [];
 
-  double get total => state.fold(0, (sum, i) => sum + i.subtotal);
+  double get total => state.fold(0, (acc, i) => acc + i.subtotal);
 }
 
 final cartProvider = NotifierProvider<CartNotifier, List<CartItem>>(CartNotifier.new);
@@ -88,7 +88,7 @@ class POSNotifier extends AsyncNotifier<void> {
               ))
           .toList();
 
-      final total = cart.fold<double>(0, (sum, i) => sum + i.subtotal);
+      final total = cart.fold<double>(0, (acc, i) => acc + i.subtotal);
 
       final sale = Sale(
         id: _uuid.v4(),

@@ -44,7 +44,7 @@ final dashboardStatsProvider = Provider<DashboardStats>((ref) {
 
   final todayRevenue = todaySales
       .where((s) => s.paymentType == PaymentType.cash)
-      .fold<double>(0, (sum, s) => sum + s.total);
+      .fold<double>(0, (acc, s) => acc + s.total);
 
   return DashboardStats(
     todayRevenue: todayRevenue,

@@ -237,7 +237,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                 title: const Text('Este producto tiene codigo de barras'),
                 value: _hasBarcode,
                 onChanged: (v) => setState(() => _hasBarcode = v),
-                activeColor: AppTheme.primary,
+                activeThumbColor: AppTheme.primary,
                 contentPadding: EdgeInsets.zero,
               ),
               if (_hasBarcode) ...[

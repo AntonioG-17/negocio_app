@@ -31,7 +31,7 @@ final clientPaymentsProvider = StreamProvider.family<List<FiadoPayment>, String>
 
 final totalDebtProvider = Provider<double>((ref) {
   final clients = ref.watch(clientsStreamProvider).valueOrNull ?? [];
-  return clients.fold(0, (sum, c) => sum + c.totalDebt);
+  return clients.fold(0, (acc, c) => acc + c.totalDebt);
 });
 
 class FiadosNotifier extends AsyncNotifier<void> {
