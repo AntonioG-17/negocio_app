@@ -8,6 +8,7 @@ class UserModel {
   final String name;
   final UserRole role;
   final String? businessId;
+  final bool isActive;
   final DateTime createdAt;
 
   const UserModel({
@@ -16,6 +17,7 @@ class UserModel {
     required this.name,
     required this.role,
     this.businessId,
+    this.isActive = true,
     required this.createdAt,
   });
 
@@ -30,6 +32,7 @@ class UserModel {
         orElse: () => UserRole.worker,
       ),
       businessId: d['businessId'] as String?,
+      isActive: d['isActive'] as bool? ?? true,
       createdAt: d['createdAt'] != null
           ? (d['createdAt'] as Timestamp).toDate()
           : DateTime.now(),
@@ -41,6 +44,7 @@ class UserModel {
         'name': name,
         'role': role.name,
         'businessId': businessId,
+        'isActive': isActive,
         'createdAt': Timestamp.fromDate(createdAt),
       };
 }

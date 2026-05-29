@@ -55,26 +55,92 @@ class _WorkerTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Card(
-      child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        leading: CircleAvatar(
-          backgroundColor: AppTheme.primary.withValues(alpha: 0.2),
-          child: Text(
-            worker.name.isNotEmpty ? worker.name[0].toUpperCase() : '?',
-            style: const TextStyle(
-                color: AppTheme.primary, fontWeight: FontWeight.bold),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            leading: CircleAvatar(
+              backgroundColor: worker.isActive
+                  ? AppTheme.primary.withValues(alpha: 0.2)
+                  : AppTheme.onSurfaceMuted.withValues(alpha: 0.15),
+              child: Text(
+                worker.name.isNotEmpty ? worker.name[0].toUpperCase() : '?',
+                style: TextStyle(
+                  color: worker.isActive ? AppTheme.primary : AppTheme.onSurfaceMuted,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            title: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    worker.name,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: worker.isActive ? null : AppTheme.onSurfaceMuted,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: worker.isActive
+                        ? AppTheme.success.withValues(alpha: 0.15)
+                        : AppTheme.error.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    worker.isActive ? 'Activo' : 'Inactivo',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: worker.isActive ? AppTheme.success : AppTheme.error,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            subtitle: Text(worker.email,
+                style: const TextStyle(color: AppTheme.onSurfaceMuted)),
+            trailing: IconButton(
+              icon: const Icon(Icons.remove_circle_outline, color: AppTheme.error),
+              tooltip: 'Remover del negocio',
+              onPressed: () => _confirmRemove(context, ref),
+            ),
           ),
-        ),
-        title: Text(worker.name,
-            style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Text(worker.email,
-            style: const TextStyle(color: AppTheme.onSurfaceMuted)),
-        trailing: IconButton(
-          icon: const Icon(Icons.remove_circle_outline, color: AppTheme.error),
-          tooltip: 'Remover del negocio',
-          onPressed: () => _confirmRemove(context, ref),
-        ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Row(
+              children: [
+                Icon(
+                  worker.isActive ? Icons.toggle_on_outlined : Icons.toggle_off_outlined,
+                  size: 16,
+                  color: AppTheme.onSurfaceMuted,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    worker.isActive
+                        ? 'Habilitado para vender hoy'
+                        : 'No puede ingresar a la app',
+                    style: const TextStyle(
+                        fontSize: 12, color: AppTheme.onSurfaceMuted),
+                  ),
+                ),
+                Switch(
+                  value: worker.isActive,
+                  activeColor: AppTheme.primary,
+                  onChanged: (val) => ref
+                      .read(authNotifierProvider.notifier)
+                      .setWorkerActive(worker.uid, val),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

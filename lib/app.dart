@@ -49,6 +49,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         return null;
       }
 
+      // Trabajador desactivado: cerrar sesión y mandar al login
+      final profile = userProfile.valueOrNull;
+      if (profile != null && profile.role == UserRole.worker && !profile.isActive) {
+        Future.microtask(() => ref.read(authNotifierProvider.notifier).logout());
+        return '/login';
+      }
+
       final hasBusiness = selectedBusiness != null;
 
       if (hasBusiness) {

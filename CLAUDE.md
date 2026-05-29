@@ -90,6 +90,22 @@ Fix en `lib/features/pos/screens/pos_screen.dart`:
 **Hoja "Resumen":** Periodo, Exportado, Ingresos totales, Total ventas, Cobrado, Fiados  
 **Hoja "Ventas":** Fecha, Hora, Trabajador, Productos, Total, Tipo de pago, Cliente
 
+## Activación de trabajadores
+
+- Campo `isActive: bool` en `users/{uid}` (default `true` al crear)
+- Admin puede activar/desactivar cada trabajador con un switch en el Panel Equipo
+- Si `isActive == false`:
+  - Login rechazado con error "Cuenta desactivada. Contacta al administrador"
+  - Si ya estaba dentro de la app: el router detecta el cambio en tiempo real via stream y cierra sesión automáticamente (microtask logout)
+- Trabajadores inactivos se ven en gris con chip "Inactivo" en el panel del admin
+- La lista de trabajadores muestra activos e inactivos (el admin ve a todos)
+
+## Ventas individuales por rol
+
+- Trabajadores: dashboard muestra solo sus propias ventas del día
+- Admin: dashboard muestra el total del día de TODO el negocio (todos los trabajadores + él mismo)
+- Cada venta en Firestore guarda `userId` + `userName` → el Excel refleja quién hizo cada venta
+
 ## Por implementar
 
 - CEO preview mode: navegar cualquier negocio en modo lectura (ver ventas + inventario, descargar Excel)

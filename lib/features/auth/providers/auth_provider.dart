@@ -112,6 +112,12 @@ class AuthNotifier extends AsyncNotifier<void> {
 
     final profile = UserModel.fromFirestore(profileSnap);
 
+    // Trabajador inactivo: cerrar sesión y lanzar error
+    if (profile.role == UserRole.worker && !profile.isActive) {
+      await _auth.signOut();
+      throw Exception('Cuenta desactivada. Contacta al administrador del negocio.');
+    }
+
     // Admin/Worker: auto-cargar su negocio
     if (profile.businessId != null &&
         (profile.role == UserRole.admin || profile.role == UserRole.worker)) {
@@ -172,6 +178,7 @@ class AuthNotifier extends AsyncNotifier<void> {
         'name': name.trim(),
         'role': UserRole.worker.name,
         'businessId': business.id,
+        'isActive': true,
         'createdAt': FieldValue.serverTimestamp(),
       });
     });
@@ -181,6 +188,13 @@ class AuthNotifier extends AsyncNotifier<void> {
   Future<void> removeWorker(String workerId) async {
     await _db.collection(AppConstants.colUsers).doc(workerId).update({
       'businessId': null,
+    });
+  }
+
+  // Admin: activa o desactiva un trabajador
+  Future<void> setWorkerActive(String workerId, bool active) async {
+    await _db.collection(AppConstants.colUsers).doc(workerId).update({
+      'isActive': active,
     });
   }
 
