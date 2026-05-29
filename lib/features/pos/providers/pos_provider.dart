@@ -55,7 +55,8 @@ class CartNotifier extends Notifier<List<CartItem>> {
 final cartProvider = NotifierProvider<CartNotifier, List<CartItem>>(CartNotifier.new);
 
 final cartTotalProvider = Provider<double>((ref) {
-  return ref.watch(cartProvider.notifier).total;
+  final cart = ref.watch(cartProvider);
+  return cart.fold(0.0, (acc, i) => acc + i.subtotal);
 });
 
 class POSNotifier extends AsyncNotifier<void> {

@@ -104,6 +104,13 @@ class InventoryNotifier extends AsyncNotifier<void> {
   }
 
   Future<void> seedDemoProducts() async {
+    final existing = await _db
+        .collection(AppConstants.colProducts)
+        .where('businessId', isEqualTo: _businessId)
+        .limit(1)
+        .get();
+    if (existing.docs.isNotEmpty) return;
+
     final now = DateTime.now();
     final demo = [
       ('Chocolate Sublime', '7501234567890', 1200.0, 800.0, 50, 10, 'Dulces'),
