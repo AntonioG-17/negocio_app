@@ -78,7 +78,7 @@ class InventoryNotifier extends AsyncNotifier<void> {
       await _db
           .collection(AppConstants.colProducts)
           .doc(product.id)
-          .update(product.copyWith().toFirestore());
+          .update(product.toFirestore());
     });
   }
 

@@ -83,7 +83,9 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     if (!_formKey.currentState!.validate()) return;
     final notifier = ref.read(inventoryNotifierProvider.notifier);
     if (_existingProduct != null) {
-      final updated = _existingProduct!.copyWith(
+      final updated = Product(
+        id: _existingProduct!.id,
+        businessId: _existingProduct!.businessId,
         name: _nameCtrl.text.trim(),
         barcode: _hasBarcode ? _barcodeCtrl.text.trim() : null,
         price: double.parse(_priceCtrl.text),
@@ -92,6 +94,8 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
         minStock: int.parse(_minStockCtrl.text),
         category: _categoryCtrl.text.trim().isEmpty ? null : _categoryCtrl.text.trim(),
         hasBarcode: _hasBarcode,
+        createdAt: _existingProduct!.createdAt,
+        updatedAt: DateTime.now(),
       );
       await notifier.updateProduct(updated);
     } else {

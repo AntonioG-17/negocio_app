@@ -186,27 +186,22 @@ class _SaleTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isFiado = sale.paymentType == PaymentType.fiado;
+    final (title, icon, color) = switch (sale.paymentType) {
+      PaymentType.fiado => ('Fiado – ${sale.clientName ?? ''}', Icons.person_outline, AppTheme.warning),
+      PaymentType.cash => ('Venta en efectivo', Icons.payments_outlined, AppTheme.success),
+      PaymentType.card => ('Venta con tarjeta', Icons.credit_card_outlined, const Color(0xFF4A90D9)),
+    };
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
-        leading: Icon(
-          isFiado ? Icons.person_outline : Icons.payments_outlined,
-          color: isFiado ? AppTheme.warning : AppTheme.success,
-        ),
-        title: Text(
-          isFiado ? 'Fiado - ${sale.clientName}' : 'Venta en efectivo',
-        ),
+        leading: Icon(icon, color: color),
+        title: Text(title),
         subtitle: Text(
           '${sale.items.length} producto(s) • ${formatTime(sale.createdAt)}',
         ),
         trailing: Text(
           formatCurrency(sale.total),
-          style: TextStyle(
-            color: isFiado ? AppTheme.warning : AppTheme.success,
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-          ),
+          style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 16),
         ),
       ),
     );
