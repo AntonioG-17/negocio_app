@@ -96,13 +96,25 @@ class BusinessSelectScreen extends ConsumerWidget {
   }
 }
 
-class _EmptyBusinesses extends ConsumerWidget {
+class _EmptyBusinesses extends ConsumerStatefulWidget {
   final VoidCallback onCreated;
   const _EmptyBusinesses({required this.onCreated});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final ctrl = TextEditingController();
+  ConsumerState<_EmptyBusinesses> createState() => _EmptyBusinessesState();
+}
+
+class _EmptyBusinessesState extends ConsumerState<_EmptyBusinesses> {
+  final _ctrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(32),
       child: Column(
@@ -118,15 +130,15 @@ class _EmptyBusinesses extends ConsumerWidget {
               textAlign: TextAlign.center),
           const SizedBox(height: 32),
           TextField(
-            controller: ctrl,
+            controller: _ctrl,
             decoration: const InputDecoration(labelText: 'Nombre del negocio'),
           ),
           const SizedBox(height: 16),
           ElevatedButton(
             onPressed: () async {
-              if (ctrl.text.trim().isEmpty) return;
-              await ref.read(authNotifierProvider.notifier).createBusiness(ctrl.text);
-              onCreated();
+              if (_ctrl.text.trim().isEmpty) return;
+              await ref.read(authNotifierProvider.notifier).createBusiness(_ctrl.text);
+              widget.onCreated();
             },
             child: const Text('Crear negocio'),
           ),

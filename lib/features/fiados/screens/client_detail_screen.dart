@@ -7,7 +7,8 @@ import 'package:negocio_app/core/utils/formatters.dart';
 import 'package:negocio_app/features/auth/providers/auth_provider.dart';
 import 'package:negocio_app/features/fiados/models/client_model.dart';
 import 'package:negocio_app/features/fiados/providers/fiados_provider.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:negocio_app/core/config/twilio_config.dart';
+import 'package:negocio_app/core/services/sms_service.dart';
 
 class ClientDetailScreen extends ConsumerWidget {
   final String clientId;
@@ -155,31 +156,72 @@ class ClientDetailScreen extends ConsumerWidget {
   }
 
   Future<void> _sendReminder(BuildContext context, WidgetRef ref, Client client) async {
+    if (!TwilioConfig.isConfigured) {
+      _showTwilioSetupDialog(context);
+      return;
+    }
     final business = ref.read(selectedBusinessProvider);
     final businessName = business?.name ?? 'el negocio';
-    final debt = formatCurrency(client.totalDebt);
-    final phone = client.phone!.replaceAll(RegExp(r'[^\d+]'), '');
 
-    final message = Uri.encodeComponent(
-      'Hola ${client.name}, te recordamos que tienes una deuda pendiente de $debt en $businessName. '
-      'Por favor acércate o comunícate con nosotros para coordinar el pago. ¡Muchas gracias!',
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(children: [
+          SizedBox(width: 16, height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+          SizedBox(width: 12),
+          Text('Enviando SMS...'),
+        ]),
+        duration: Duration(seconds: 10),
+      ),
     );
 
-    final whatsappUri = Uri.parse('https://wa.me/$phone?text=$message');
-    final smsUri = Uri.parse('sms:$phone?body=$message');
-
-    if (await canLaunchUrl(whatsappUri)) {
-      await launchUrl(whatsappUri, mode: LaunchMode.externalApplication);
-    } else if (await canLaunchUrl(smsUri)) {
-      await launchUrl(smsUri, mode: LaunchMode.externalApplication);
-    } else if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No se pudo abrir WhatsApp ni SMS'),
-          backgroundColor: AppTheme.error,
-        ),
+    try {
+      await SmsService.sendReminder(
+        phone: client.phone!,
+        clientName: client.name,
+        businessName: businessName,
+        debt: client.totalDebt,
       );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('SMS enviado a ${client.name}'),
+            backgroundColor: AppTheme.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      }
     }
+  }
+
+  void _showTwilioSetupDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.surface,
+        title: const Text('Configurar SMS'),
+        content: const Text(
+          'Para enviar SMS automaticos necesitas configurar Twilio.\n\n'
+          'Sigue las instrucciones en:\ndocs/twilio-setup.md',
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Entendido'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showAddPayment(BuildContext context, WidgetRef ref, Client client) {

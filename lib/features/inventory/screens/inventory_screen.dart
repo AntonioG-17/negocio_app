@@ -8,11 +8,24 @@ import 'package:negocio_app/features/inventory/providers/inventory_provider.dart
 
 final _searchProvider = StateProvider<String>((ref) => '');
 
-class InventoryScreen extends ConsumerWidget {
+class InventoryScreen extends ConsumerStatefulWidget {
   const InventoryScreen({super.key});
+  @override
+  ConsumerState<InventoryScreen> createState() => _InventoryScreenState();
+}
+
+class _InventoryScreenState extends ConsumerState<InventoryScreen> {
+  final _searchCtrl = TextEditingController();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  void dispose() {
+    ref.read(_searchProvider.notifier).state = '';
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final products = ref.watch(productsStreamProvider);
     final search = ref.watch(_searchProvider);
 
@@ -38,6 +51,7 @@ class InventoryScreen extends ConsumerWidget {
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
             child: TextField(
+              controller: _searchCtrl,
               onChanged: (v) =>
                   ref.read(_searchProvider.notifier).state = v.toLowerCase(),
               decoration: const InputDecoration(
