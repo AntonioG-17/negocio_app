@@ -301,7 +301,17 @@ class _BarcodeScannerSheet extends StatefulWidget {
 }
 
 class _BarcodeScannerSheetState extends State<_BarcodeScannerSheet> {
-  final _ctrl = MobileScannerController();
+  final _ctrl = MobileScannerController(
+    facing: CameraFacing.back,
+    formats: const [
+      BarcodeFormat.ean13,
+      BarcodeFormat.ean8,
+      BarcodeFormat.code128,
+      BarcodeFormat.upcA,
+      BarcodeFormat.upcE,
+      BarcodeFormat.qrCode,
+    ],
+  );
 
   @override
   void dispose() {
