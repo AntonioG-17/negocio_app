@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:negocio_app/core/scanner/web_scanner_bridge.dart';
 import 'package:negocio_app/core/theme/app_theme.dart';
 import 'package:negocio_app/core/utils/formatters.dart';
 import 'package:negocio_app/features/inventory/models/product_model.dart';
@@ -16,62 +16,25 @@ class POSScreen extends ConsumerStatefulWidget {
   ConsumerState<POSScreen> createState() => _POSScreenState();
 }
 
-class _POSScreenState extends ConsumerState<POSScreen>
-    with WidgetsBindingObserver {
-  bool _scannerActive = false;
+class _POSScreenState extends ConsumerState<POSScreen> {
   bool _isProcessingBarcode = false;
-  late final MobileScannerController _scannerCtrl;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    _scannerCtrl = MobileScannerController(
-      autoStart: false,
-      facing: CameraFacing.back,
-      formats: const [
-        BarcodeFormat.ean13,
-        BarcodeFormat.ean8,
-        BarcodeFormat.code128,
-        BarcodeFormat.upcA,
-        BarcodeFormat.upcE,
-        BarcodeFormat.qrCode,
-      ],
-    );
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (!_scannerActive) return;
-    if (state == AppLifecycleState.paused) {
-      _scannerCtrl.stop();
-    } else if (state == AppLifecycleState.resumed) {
-      _scannerCtrl.start();
-    }
-  }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    _scannerCtrl.dispose();
+    stopWebScanner();
     super.dispose();
   }
 
-  Future<void> _toggleScanner() async {
-    if (_scannerActive) {
-      await _scannerCtrl.stop();
-      setState(() => _scannerActive = false);
-    } else {
-      setState(() => _scannerActive = true);
-      await _scannerCtrl.start();
-    }
+  void _toggleScanner() {
+    startWebScanner(
+      onDetect: _onBarcodeDetected,
+      onCancel: () {},
+    );
   }
 
   Future<void> _onBarcodeDetected(String barcode) async {
     if (_isProcessingBarcode) return;
     _isProcessingBarcode = true;
-    await _scannerCtrl.stop();
-    setState(() => _scannerActive = false);
     final result = await ref.read(posNotifierProvider.notifier).scanBarcode(barcode);
     _isProcessingBarcode = false;
     if (!mounted) return;
@@ -156,12 +119,6 @@ class _POSScreenState extends ConsumerState<POSScreen>
       ),
       body: Column(
         children: [
-          if (_scannerActive)
-            _ScannerWidget(
-              controller: _scannerCtrl,
-              onDetect: _onBarcodeDetected,
-              onClose: _toggleScanner,
-            ),
           Expanded(
             child: cart.isEmpty
                 ? Center(
@@ -194,69 +151,6 @@ class _POSScreenState extends ConsumerState<POSScreen>
             onCheckout: () => context.go('/pos/checkout'),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _ScannerWidget extends StatelessWidget {
-  final MobileScannerController controller;
-  final ValueChanged<String> onDetect;
-  final VoidCallback onClose;
-
-  const _ScannerWidget({
-    required this.controller,
-    required this.onDetect,
-    required this.onClose,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 200,
-      margin: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.primary, width: 2),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(14),
-        child: Stack(
-          children: [
-            MobileScanner(
-              controller: controller,
-              onDetect: (capture) {
-                final code = capture.barcodes.firstOrNull?.rawValue;
-                if (code != null) onDetect(code);
-              },
-            ),
-            Positioned(
-              top: 8,
-              right: 8,
-              child: IconButton(
-                onPressed: onClose,
-                icon: const Icon(Icons.close, color: Colors.white),
-                style: IconButton.styleFrom(backgroundColor: Colors.black54),
-              ),
-            ),
-            Positioned(
-              bottom: 8,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.black54,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Text('Apunta al codigo de barras',
-                      style: TextStyle(color: Colors.white, fontSize: 12)),
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

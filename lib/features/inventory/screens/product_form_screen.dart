@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:negocio_app/core/constants/app_constants.dart';
+import 'package:negocio_app/core/scanner/web_scanner_bridge.dart';
 import 'package:negocio_app/core/theme/app_theme.dart';
 import 'package:negocio_app/features/inventory/models/product_model.dart';
 import 'package:negocio_app/features/inventory/providers/inventory_provider.dart';
@@ -64,19 +64,18 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     super.dispose();
   }
 
-  Future<void> _scanBarcode() async {
-    final result = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppTheme.surface,
-      builder: (_) => const _BarcodeScannerSheet(),
+  void _scanBarcode() {
+    startWebScanner(
+      onDetect: (code) {
+        if (mounted) {
+          setState(() {
+            _barcodeCtrl.text = code;
+            _hasBarcode = true;
+          });
+        }
+      },
+      onCancel: () {},
     );
-    if (result != null) {
-      setState(() {
-        _barcodeCtrl.text = result;
-        _hasBarcode = true;
-      });
-    }
   }
 
   Future<void> _submit() async {
@@ -293,63 +292,3 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   }
 }
 
-class _BarcodeScannerSheet extends StatefulWidget {
-  const _BarcodeScannerSheet();
-
-  @override
-  State<_BarcodeScannerSheet> createState() => _BarcodeScannerSheetState();
-}
-
-class _BarcodeScannerSheetState extends State<_BarcodeScannerSheet> {
-  final _ctrl = MobileScannerController(
-    facing: CameraFacing.back,
-    formats: const [
-      BarcodeFormat.ean13,
-      BarcodeFormat.ean8,
-      BarcodeFormat.code128,
-      BarcodeFormat.upcA,
-      BarcodeFormat.upcE,
-      BarcodeFormat.qrCode,
-    ],
-  );
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: MediaQuery.of(context).size.height * 0.6,
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Text('Escanea el codigo de barras',
-                style: Theme.of(context).textTheme.titleLarge),
-          ),
-          Expanded(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: MobileScanner(
-                controller: _ctrl,
-                onDetect: (capture) {
-                  final code = capture.barcodes.firstOrNull?.rawValue;
-                  if (code != null) Navigator.pop(context, code);
-                },
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          const SizedBox(height: 8),
-        ],
-      ),
-    );
-  }
-}

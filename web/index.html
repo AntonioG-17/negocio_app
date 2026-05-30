@@ -17,8 +17,9 @@
   <title>NegocioApp</title>
   <link rel="manifest" href="manifest.json">
 
-  <!-- ZXing barcode library — hosted locally so mobile_scanner works offline/PWA on Safari -->
-  <script id="mobile-scanner-barcode-reader" src="zxing.js"></script>
+  <!-- Barcode scanning: html5-qrcode (works on Safari iOS PWA) + bridge -->
+  <script src="html5-qrcode.min.js"></script>
+  <script src="scanner_bridge.js"></script>
 
   <script>
     (async function () {
