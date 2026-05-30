@@ -37,24 +37,7 @@ class DashboardScreen extends ConsumerWidget {
           ],
         ),
         actions: [
-          // Rol badge
-          if (role != null)
-            Container(
-              margin: const EdgeInsets.only(right: 4),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: _roleColor(role).withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                _roleLabel(role),
-                style: TextStyle(
-                    color: _roleColor(role),
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold),
-              ),
-            ),
-          // Admin: botón panel de equipo
+          // Botón equipo solo visible para admin
           if (isAdmin)
             IconButton(
               icon: const Icon(Icons.group_outlined),
@@ -75,8 +58,7 @@ class DashboardScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Saludo para trabajador
-              if (isWorker && profile != null) ...[
+              if (profile != null) ...[
                 Text(
                   'Hola, ${profile.name}',
                   style: Theme.of(context)
@@ -87,9 +69,7 @@ class DashboardScreen extends ConsumerWidget {
                 const SizedBox(height: 4),
               ],
               Text(
-                isWorker
-                    ? 'Tus ventas de hoy, ${formatDate(DateTime.now())}'
-                    : 'Hoy, ${formatDate(DateTime.now())}',
+                'Hoy, ${formatDate(DateTime.now())}',
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
               const SizedBox(height: 16),
@@ -192,22 +172,6 @@ class DashboardScreen extends ConsumerWidget {
         ),
       ),
     );
-  }
-
-  Color _roleColor(UserRole role) {
-    return switch (role) {
-      UserRole.ceo => AppTheme.primary,
-      UserRole.admin => AppTheme.success,
-      UserRole.worker => AppTheme.onSurfaceMuted,
-    };
-  }
-
-  String _roleLabel(UserRole role) {
-    return switch (role) {
-      UserRole.ceo => 'CEO',
-      UserRole.admin => 'Admin',
-      UserRole.worker => 'Trabajador',
-    };
   }
 }
 
