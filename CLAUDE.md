@@ -20,6 +20,25 @@ flutter build web --release && firebase deploy --only hosting
 
 Firebase project: `proyecto-app-negocio`
 
+## Auto-actualización (el usuario NO debe refrescar ni reinstalar nada)
+
+`web/index.html` tiene un loader que hace updates 100% automáticos:
+- Cada build de Flutter genera un `serviceWorkerVersion` nuevo.
+- Al abrir, el loader baja `flutter_bootstrap.js` con URL única (`?_=timestamp`,
+  `cache:'no-store'`) → siempre ve la versión real de la red.
+- Si la versión cambió: borra todos los caches (Cache Storage), desregistra el
+  Service Worker, guarda la versión nueva y hace `location.reload()` UNA vez
+  (guardado en `sessionStorage._reloaded_for` para no entrar en loop).
+- **Clave:** todos los scripts se cargan con `?v=<version>` (incluido
+  `quagga.min.js` y `scanner_bridge.js`). Sin esto, el header `immutable` de
+  `firebase.json` (`max-age=31536000`) cachea los `.js` de nombre fijo por 1 año
+  y el usuario queda pegado en código viejo. Borrar el Cache Storage NO limpia
+  el caché HTTP del disco; solo una URL nueva (`?v=`) lo busta.
+
+**Si alguna vez queda pegado en una versión vieja** (p.ej. tras cambiar este
+loader): una sola vez, quitar la PWA de la pantalla de inicio y volver a
+agregarla (limpia el caché HTTP del disco). De ahí en adelante es automático.
+
 ## Sistema de roles
 
 | Rol | Acceso | Creado por |

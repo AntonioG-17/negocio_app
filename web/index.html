@@ -17,26 +17,41 @@
   <title>NegocioApp</title>
   <link rel="manifest" href="manifest.json">
 
-  <!-- Barcode scanning: Quagga2 (1D-optimized, robust on Safari iOS PWA) + bridge -->
-  <script src="quagga.min.js"></script>
-  <script src="scanner_bridge.js"></script>
-
+  <!--
+    Auto-update + barcode scanner loader.
+    Goal: the user NEVER has to refresh or clear anything. Every deploy ships a
+    new serviceWorkerVersion; we detect it, wipe stale caches, and load all
+    scripts with ?v=<version> so even files marked `immutable` are re-fetched.
+  -->
   <script>
     (async function () {
+      function loadScript(src) {
+        return new Promise(function (resolve) {
+          var s = document.createElement('script');
+          s.src = src;
+          s.onload = resolve;
+          s.onerror = resolve;
+          document.head.appendChild(s);
+        });
+      }
+
+      let version = String(Date.now());
       try {
-        // Siempre trae flutter_bootstrap.js directo de la red (nunca del caché HTTP)
+        // Always pull flutter_bootstrap.js straight from the network (unique URL
+        // bypasses both the service worker and the HTTP cache).
         const resp = await fetch('/flutter_bootstrap.js?_=' + Date.now(), { cache: 'no-store' });
         const text = await resp.text();
 
-        // Extrae la versión del service worker embebida en el bootstrap
         const match = text.match(/serviceWorkerVersion:\s*"(\d+)"/);
-        const version = match ? match[1] : String(Date.now());
+        version = match ? match[1] : version;
 
-        // Guarda la versión y limpia caché si cambió
         const storedVersion = localStorage.getItem('_app_version');
-        localStorage.setItem('_app_version', version);
 
-        if (storedVersion !== null && storedVersion !== version) {
+        // App was updated → nuke every cache + the service worker, then reload
+        // ONCE so this session already runs the fresh index.html and assets.
+        // Fully automatic: no manual refresh, no remove/re-add.
+        if (storedVersion && storedVersion !== version) {
+          localStorage.setItem('_app_version', version);
           if ('caches' in window) {
             const keys = await caches.keys();
             await Promise.all(keys.map(k => caches.delete(k)));
@@ -45,16 +60,25 @@
             const regs = await navigator.serviceWorker.getRegistrations();
             await Promise.all(regs.map(r => r.unregister()));
           }
+          if (sessionStorage.getItem('_reloaded_for') !== version) {
+            sessionStorage.setItem('_reloaded_for', version);
+            location.reload();
+            return; // stop here — the reload picks up everything fresh
+          }
         }
+        localStorage.setItem('_app_version', version);
 
-        // Parcha main.dart.js para incluir la versión en la URL
-        // → el browser lo trata como URL nueva y lo descarga de la red
+        // Barcode scanner: Quagga2 engine + bridge, versioned so updates to the
+        // scanner are never served stale from the immutable HTTP cache.
+        await loadScript('quagga.min.js?v=' + version);
+        await loadScript('scanner_bridge.js?v=' + version);
+
+        // Patch main.dart.js with the version and run the bootstrap as a blob.
         const patched = text
           .replace('"main.dart.js"', '"main.dart.js?v=' + version + '"')
           .replace("'main.dart.js'", "'main.dart.js?v=" + version + "'")
           .replace(/"mainJsPath":"main\.dart\.js"/, '"mainJsPath":"main.dart.js?v=' + version + '"');
 
-        // Ejecuta el bootstrap parcheado como blob (100% bypass del caché HTTP)
         const blob = new Blob([patched], { type: 'application/javascript' });
         const url = URL.createObjectURL(blob);
         const s = document.createElement('script');
@@ -64,6 +88,8 @@
 
       } catch (e) {
         console.warn('Version check failed, loading normally:', e);
+        await loadScript('quagga.min.js?v=' + version);
+        await loadScript('scanner_bridge.js?v=' + version);
         const s = document.createElement('script');
         s.src = 'flutter_bootstrap.js';
         document.head.appendChild(s);
