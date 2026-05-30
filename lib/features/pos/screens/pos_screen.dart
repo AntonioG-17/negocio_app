@@ -127,6 +127,11 @@ class _POSScreenState extends ConsumerState<POSScreen> {
     // Remove the trigger button while the sheet is open so it can't intercept
     // taps through the modal.
     hideScanTrigger();
+    stopWebScanner();
+    // Let the compositor settle after the camera tears down before opening a
+    // heavy sheet (avoids a CanvasKit white-screen on iOS PWA right after a scan).
+    await Future.delayed(const Duration(milliseconds: 150));
+    if (!mounted) return;
     final products = ref.read(productsStreamProvider).valueOrNull ?? [];
     await showModalBottomSheet(
       context: context,
@@ -417,7 +422,6 @@ class _ManualSearchSheetState extends ConsumerState<_ManualSearchSheet> {
                   ),
                   const SizedBox(height: 8),
                   TextField(
-                    autofocus: true,
                     onChanged: (v) => setState(() => _search = v),
                     decoration: const InputDecoration(
                       hintText: 'Buscar producto...',

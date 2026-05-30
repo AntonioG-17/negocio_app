@@ -243,16 +243,21 @@
         target: container,
         constraints: {
           facingMode: 'environment',
-          // Moderate resolution → much faster single-thread decode on iPhone
-          // while still sharp enough to resolve EAN/UPC bars.
-          width: { ideal: 960 },
-          height: { ideal: 540 },
+          // High resolution so the bars are sharp enough to decode.
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
           aspectRatio: { ideal: 1.7777778 },
         },
+        // Decode only the central horizontal band (where the user aligns the
+        // code). Combined with halfSample:false this means we process a SMALL
+        // region at FULL resolution → both fast AND sharp enough to read.
+        area: { top: '28%', right: '4%', left: '4%', bottom: '28%' },
       },
-      locator: { patchSize: 'medium', halfSample: true },
+      // halfSample:false → full-resolution decode. halfSample:true was halving
+      // the pixels per bar and was why it processed fast but never read.
+      locator: { patchSize: 'medium', halfSample: false },
       numOfWorkers: 0, // single-thread → reliable on Safari iOS (no worker blobs)
-      frequency: 10,
+      frequency: 15,
       decoder: {
         readers: [
           'ean_reader', 'ean_8_reader',
