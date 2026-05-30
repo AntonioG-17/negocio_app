@@ -66,10 +66,24 @@
   }
 
   function stopQuagga() {
-    if (_running && window.Quagga) {
+    if (window.Quagga) {
       try { window.Quagga.offDetected(_onDetected); } catch (e) {}
+      try { window.Quagga.offProcessed(); } catch (e) {}
       try { window.Quagga.stop(); } catch (e) {}
     }
+    // Belt-and-suspenders: hard-release the camera so a leftover live stream
+    // never starves the main thread (slowness) or wedges rendering (blank screen).
+    try {
+      var scope = _overlay || document;
+      var vids = scope.querySelectorAll('video');
+      for (var i = 0; i < vids.length; i++) {
+        var s = vids[i].srcObject;
+        if (s && s.getTracks) {
+          s.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
+        }
+        vids[i].srcObject = null;
+      }
+    } catch (e) {}
     _running = false;
   }
 
@@ -125,7 +139,10 @@
       _confirmCount = 1;
     }
 
-    if (err < 0.15 || _confirmCount >= 2) {
+    // EAN/UPC carry a checksum that Quagga already validated, so a single
+    // reasonably-clean read is safe to accept instantly (supermarket-fast).
+    // Only the noisiest reads wait for a second matching frame.
+    if (err < 0.25 || _confirmCount >= 2) {
       _accept(code);
     }
   }
@@ -226,8 +243,10 @@
         target: container,
         constraints: {
           facingMode: 'environment',
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
+          // Moderate resolution → much faster single-thread decode on iPhone
+          // while still sharp enough to resolve EAN/UPC bars.
+          width: { ideal: 960 },
+          height: { ideal: 540 },
           aspectRatio: { ideal: 1.7777778 },
         },
       },

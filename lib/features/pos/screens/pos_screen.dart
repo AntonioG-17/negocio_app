@@ -36,6 +36,7 @@ class _POSScreenState extends ConsumerState<POSScreen> {
   }
 
   void _armScanTrigger() {
+    if (!mounted) return;
     final box = _scanBtnKey.currentContext?.findRenderObject() as RenderBox?;
     if (box == null || !box.hasSize) return;
     final offset = box.localToGlobal(Offset.zero);
@@ -44,12 +45,18 @@ class _POSScreenState extends ConsumerState<POSScreen> {
       y: offset.dy,
       width: box.size.width,
       height: box.size.height,
-      onDetect: (barcode) {
-        _onBarcodeDetected(barcode);
-        Future.microtask(_armScanTrigger);
-      },
-      onCancel: () => Future.microtask(_armScanTrigger),
+      onDetect: _onBarcodeDetected,
+      onCancel: _rearmLater,
     );
+  }
+
+  // Re-arm after the current frame so we never place the (high z-index) HTML
+  // trigger button on top of an open dialog or bottom sheet.
+  void _rearmLater() {
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _armScanTrigger();
+    });
   }
 
   Future<void> _onBarcodeDetected(String barcode) async {
@@ -58,8 +65,9 @@ class _POSScreenState extends ConsumerState<POSScreen> {
     final result = await ref.read(posNotifierProvider.notifier).scanBarcode(barcode);
     _isProcessingBarcode = false;
     if (!mounted) return;
+
     if (result == 'not_found') {
-      showDialog(
+      final action = await showDialog<String>(
         context: context,
         builder: (_) => AlertDialog(
           title: const Row(
@@ -69,26 +77,25 @@ class _POSScreenState extends ConsumerState<POSScreen> {
               Text('Producto no encontrado'),
             ],
           ),
-          content: Text(
-            'El código "$barcode" no existe en el inventario.',
-          ),
+          content: Text('El código "$barcode" no existe en el inventario.'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(context, 'close'),
               child: const Text('Cerrar'),
             ),
             ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _showManualSearch();
-              },
+              onPressed: () => Navigator.pop(context, 'manual'),
               child: const Text('Buscar manual'),
             ),
           ],
         ),
       );
+      if (!mounted) return;
+      if (action == 'manual') {
+        await _showManualSearch();
+      }
     } else if (result == 'no_stock') {
-      showDialog(
+      await showDialog(
         context: context,
         builder: (_) => AlertDialog(
           title: const Row(
@@ -108,16 +115,24 @@ class _POSScreenState extends ConsumerState<POSScreen> {
         ),
       );
     }
+
+    // Whatever happened (added to cart, dialog closed, manual search done),
+    // re-arm now that the POS screen is the topmost surface again.
+    _rearmLater();
   }
 
-  void _showManualSearch() {
+  Future<void> _showManualSearch() async {
+    // Remove the trigger button while the sheet is open so it can't intercept
+    // taps through the modal.
+    hideScanTrigger();
     final products = ref.read(productsStreamProvider).valueOrNull ?? [];
-    showModalBottomSheet(
+    await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: AppTheme.surface,
       builder: (_) => _ManualSearchSheet(products: products),
     );
+    if (mounted) _rearmLater();
   }
 
   @override
