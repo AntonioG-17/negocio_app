@@ -81,6 +81,7 @@ class FiadosScreen extends ConsumerWidget {
     final phoneCtrl = TextEditingController();
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppTheme.surface,
         title: const Text('Nuevo cliente'),
@@ -115,7 +116,10 @@ class FiadosScreen extends ConsumerWidget {
           ),
         ],
       ),
-    );
+    ).whenComplete(() {
+      nameCtrl.dispose();
+      phoneCtrl.dispose();
+    });
   }
 }
 

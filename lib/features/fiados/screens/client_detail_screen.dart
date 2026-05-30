@@ -136,9 +136,12 @@ class ClientDetailScreen extends ConsumerWidget {
   void _showAddPayment(BuildContext context, WidgetRef ref, Client client) {
     final amountCtrl = TextEditingController();
     final noteCtrl = TextEditingController();
+    var paying = false;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
       backgroundColor: AppTheme.surface,
       builder: (ctx) => Padding(
         padding: EdgeInsets.only(
@@ -151,7 +154,19 @@ class ClientDetailScreen extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Registrar pago', style: Theme.of(ctx).textTheme.titleLarge),
+            Row(
+              children: [
+                Expanded(
+                  child: Text('Registrar pago',
+                      style: Theme.of(ctx).textTheme.titleLarge),
+                ),
+                TextButton.icon(
+                  onPressed: () => Navigator.pop(ctx),
+                  icon: const Icon(Icons.close, size: 18),
+                  label: const Text('Cerrar'),
+                ),
+              ],
+            ),
             const SizedBox(height: 4),
             Text('Deuda actual: ${formatCurrency(client.totalDebt)}',
                 style: const TextStyle(color: AppTheme.warning)),
@@ -172,38 +187,59 @@ class ClientDetailScreen extends ConsumerWidget {
               decoration: const InputDecoration(labelText: 'Nota (opcional)'),
             ),
             const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () async {
-                final amount = double.tryParse(amountCtrl.text);
-                if (amount == null || amount <= 0) return;
-                if (amount > client.totalDebt) {
-                  ScaffoldMessenger.of(ctx).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                          'El monto no puede superar la deuda (${formatCurrency(client.totalDebt)})'),
-                      backgroundColor: AppTheme.warning,
-                    ),
-                  );
-                  return;
-                }
-                await ref.read(fiadosNotifierProvider.notifier).addPayment(
-                      clientId: client.id,
-                      amount: amount,
-                      note: noteCtrl.text.isEmpty ? null : noteCtrl.text,
-                    );
-                if (ctx.mounted) Navigator.pop(ctx);
+            StatefulBuilder(
+              builder: (ctx2, setBtnState) {
+                return ElevatedButton(
+                  onPressed: paying
+                      ? null
+                      : () async {
+                          final amount = double.tryParse(amountCtrl.text);
+                          if (amount == null || amount <= 0) return;
+                          if (amount > client.totalDebt) {
+                            ScaffoldMessenger.of(ctx).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                    'El monto no puede superar la deuda (${formatCurrency(client.totalDebt)})'),
+                                backgroundColor: AppTheme.warning,
+                              ),
+                            );
+                            return;
+                          }
+                          // Guard against a double-tap registering two payments
+                          // (which would drive the debt negative).
+                          paying = true;
+                          setBtnState(() {});
+                          await ref.read(fiadosNotifierProvider.notifier).addPayment(
+                                clientId: client.id,
+                                amount: amount,
+                                note: noteCtrl.text.isEmpty ? null : noteCtrl.text,
+                              );
+                          paying = false;
+                          if (ctx.mounted) Navigator.pop(ctx);
+                        },
+                  child: paying
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.black))
+                      : const Text('Confirmar pago'),
+                );
               },
-              child: const Text('Confirmar pago'),
             ),
           ],
         ),
       ),
-    );
+    ).whenComplete(() {
+      amountCtrl.dispose();
+      noteCtrl.dispose();
+    });
   }
 
   Future<void> _delete(BuildContext context, WidgetRef ref, Client client) async {
     final confirm = await showDialog<bool>(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppTheme.surface,
         title: const Text('Eliminar cliente'),

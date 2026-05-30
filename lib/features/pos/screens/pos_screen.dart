@@ -69,6 +69,7 @@ class _POSScreenState extends ConsumerState<POSScreen> {
     if (result == 'not_found') {
       final action = await showDialog<String>(
         context: context,
+        barrierDismissible: false,
         builder: (_) => AlertDialog(
           title: const Row(
             children: [
@@ -97,6 +98,7 @@ class _POSScreenState extends ConsumerState<POSScreen> {
     } else if (result == 'no_stock') {
       await showDialog(
         context: context,
+        barrierDismissible: false,
         builder: (_) => AlertDialog(
           title: const Row(
             children: [
@@ -129,6 +131,8 @@ class _POSScreenState extends ConsumerState<POSScreen> {
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
       backgroundColor: AppTheme.surface,
       builder: (_) => _ManualSearchSheet(products: products),
     );
@@ -397,7 +401,21 @@ class _ManualSearchSheetState extends ConsumerState<_ManualSearchSheet> {
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text('Buscar producto',
+                            style: Theme.of(context).textTheme.titleLarge),
+                      ),
+                      TextButton.icon(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close, size: 18),
+                        label: const Text('Cerrar'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
                   TextField(
                     autofocus: true,
                     onChanged: (v) => setState(() => _search = v),

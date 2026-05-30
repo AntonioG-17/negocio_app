@@ -128,6 +128,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   Future<void> _delete() async {
     final confirm = await showDialog<bool>(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppTheme.surface,
         title: const Text('Eliminar producto'),

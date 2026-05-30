@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:negocio_app/core/theme/app_theme.dart';
@@ -18,8 +19,14 @@ class CheckoutScreen extends ConsumerStatefulWidget {
 class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   PaymentType _paymentType = PaymentType.cash;
   Client? _selectedClient;
+  bool _submitting = false;
 
   Future<void> _confirmSale() async {
+    // Synchronous guard: a fast double-tap fires twice before the button
+    // rebuilds as disabled. Without this, the sale commits twice and stock is
+    // decremented double.
+    if (_submitting) return;
+
     if (_paymentType == PaymentType.fiado && _selectedClient == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -29,26 +36,157 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       );
       return;
     }
-    await ref.read(posNotifierProvider.notifier).checkout(
-          paymentType: _paymentType,
-          client: _selectedClient,
+
+    _submitting = true;
+    try {
+      // Pago en efectivo: tras pasar las validaciones, pedir con cuánto paga
+      // el cliente y calcular el vuelto antes de registrar la venta.
+      double? change;
+      if (_paymentType == PaymentType.cash) {
+        final total = ref.read(cartTotalProvider);
+        final paid = await _askCashPayment(total);
+        if (paid == null) return; // canceló → finally resetea _submitting
+        change = paid - total;
+      }
+
+      await ref.read(posNotifierProvider.notifier).checkout(
+            paymentType: _paymentType,
+            client: _selectedClient,
+          );
+      final state = ref.read(posNotifierProvider);
+      if (!mounted) return;
+      if (!state.hasError) {
+        _showSuccessDialog(change: change);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error al registrar venta. Intenta nuevamente.'),
+            backgroundColor: AppTheme.error,
+          ),
         );
-    final state = ref.read(posNotifierProvider);
-    if (!state.hasError && mounted) {
-      _showSuccessDialog();
-    } else if (state.hasError && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error al registrar venta. Intenta nuevamente.'),
-          backgroundColor: AppTheme.error,
-        ),
-      );
-      // Resetea el estado para que el boton vuelva a estar activo
-      ref.read(posNotifierProvider.notifier).resetState();
+        // Resetea el estado para que el boton vuelva a estar activo
+        ref.read(posNotifierProvider.notifier).resetState();
+      }
+    } finally {
+      _submitting = false;
     }
   }
 
-  void _showSuccessDialog() {
+  // Pregunta con cuánto paga el cliente y muestra el vuelto en vivo.
+  // Devuelve el monto pagado, o null si se cancela.
+  Future<double?> _askCashPayment(double total) {
+    final ctrl = TextEditingController();
+    return showDialog<double>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx2, setS) {
+          final paid = double.tryParse(ctrl.text);
+          final hasValue = paid != null && paid > 0;
+          final change = hasValue ? paid - total : 0.0;
+          final enough = hasValue && paid >= total;
+          return AlertDialog(
+            backgroundColor: AppTheme.surface,
+            title: const Text('Pago en efectivo'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Total a cobrar',
+                        style: TextStyle(color: AppTheme.onSurfaceMuted)),
+                    Text(formatCurrency(total),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 16)),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: ctrl,
+                  autofocus: true,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  onChanged: (_) => setS(() {}),
+                  decoration: const InputDecoration(
+                    labelText: '¿Con cuánto paga?',
+                    prefixText: '\$ ',
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () {
+                      ctrl.text = total.toStringAsFixed(0);
+                      setS(() {});
+                    },
+                    child: const Text('Pago justo'),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: (!hasValue
+                            ? AppTheme.onSurfaceMuted
+                            : enough
+                                ? AppTheme.success
+                                : AppTheme.warning)
+                        .withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        !hasValue
+                            ? 'Vuelto'
+                            : enough
+                                ? 'Vuelto'
+                                : 'Falta',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      Text(
+                        !hasValue
+                            ? '—'
+                            : enough
+                                ? formatCurrency(change)
+                                : formatCurrency(total - paid),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: !hasValue
+                              ? AppTheme.onSurfaceMuted
+                              : enough
+                                  ? AppTheme.success
+                                  : AppTheme.warning,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                onPressed: enough ? () => Navigator.pop(ctx, paid) : null,
+                child: const Text('Cobrar'),
+              ),
+            ],
+          );
+        },
+      ),
+    ).whenComplete(ctrl.dispose);
+  }
+
+  void _showSuccessDialog({double? change}) {
     final paymentType = _paymentType;
     final clientName = _selectedClient?.name;
     showDialog(
@@ -85,6 +223,20 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 ],
               ),
             ),
+            if (change != null && change > 0) ...[
+              const SizedBox(height: 20),
+              const Text('Vuelto a entregar',
+                  style: TextStyle(color: AppTheme.onSurfaceMuted)),
+              const SizedBox(height: 4),
+              Text(
+                formatCurrency(change),
+                style: const TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.success,
+                ),
+              ),
+            ],
           ],
         ),
         actions: [
@@ -93,7 +245,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               Navigator.of(ctx).pop();
               context.go('/dashboard');
             },
-            child: const Text('Aceptar'),
+            child: Text(
+              change != null && change > 0 ? 'Listo, vuelto entregado' : 'Aceptar',
+            ),
           ),
         ],
       ),
@@ -124,6 +278,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       context: context,
       backgroundColor: AppTheme.surface,
       isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
       builder: (_) => _ClientPickerSheet(
         clients: clients,
         onSelect: (c) => setState(() => _selectedClient = c),
@@ -137,6 +293,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final phoneCtrl = TextEditingController();
     final result = await showDialog<bool>(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppTheme.surface,
         title: const Text('Nuevo cliente'),
@@ -172,6 +329,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           );
       if (mounted) setState(() => _selectedClient = client);
     }
+    nameCtrl.dispose();
+    phoneCtrl.dispose();
   }
 
   @override
@@ -385,7 +544,21 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text('Seleccionar cliente',
+                          style: Theme.of(context).textTheme.titleLarge),
+                    ),
+                    TextButton.icon(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close, size: 18),
+                      label: const Text('Cerrar'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
                 TextField(
                   autofocus: true,
                   onChanged: (v) => setState(() => _search = v),

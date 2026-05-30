@@ -23,7 +23,7 @@ class AdminPanelScreen extends ConsumerWidget {
             : ListView.separated(
                 padding: const EdgeInsets.all(20),
                 itemCount: list.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                separatorBuilder: (_, _) => const SizedBox(height: 8),
                 itemBuilder: (_, i) => _WorkerTile(worker: list[i]),
               ),
       ),
@@ -132,7 +132,7 @@ class _WorkerTile extends ConsumerWidget {
                 ),
                 Switch(
                   value: worker.isActive,
-                  activeColor: AppTheme.primary,
+                  activeThumbColor: AppTheme.primary,
                   onChanged: (val) => ref
                       .read(authNotifierProvider.notifier)
                       .setWorkerActive(worker.uid, val),
@@ -148,6 +148,7 @@ class _WorkerTile extends ConsumerWidget {
   void _confirmRemove(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) => AlertDialog(
         title: const Text('Remover trabajador'),
         content: Text('¿Remover a ${worker.name} del negocio?\n\nYa no podrá acceder.'),

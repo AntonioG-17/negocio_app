@@ -149,6 +149,30 @@ resolución `1280x720 ideal`, rechazo de lecturas con `avgError > 0.20`.
 - Admin/trabajadores se agregan separado (parte del CEO preview mode pendiente)
 - Tarjeta de negocio tiene flecha `>` (hint de que se podrá entrar en preview mode)
 
+## Checkout — pago en efectivo y vuelto
+
+- Al elegir "Efectivo" y confirmar, tras las validaciones se pide "¿Con cuánto paga?"
+  con cálculo de vuelto en vivo (botón "Pago justo" rellena el total). Solo se puede
+  "Cobrar" si el monto ≥ total.
+- El vuelto se muestra grande en el diálogo de éxito y NO se cierra solo: el botón dice
+  "Listo, vuelto entregado" para confirmar la entrega.
+
+## Convención de pop-ups (UX)
+
+TODOS los diálogos y bottom sheets son no-descartables tocando afuera
+(`barrierDismissible: false` en `showDialog`; `isDismissible: false` + `enableDrag: false`
+en `showModalBottomSheet`). Solo se cierran con sus botones internos. Las hojas de
+búsqueda/selección llevan un botón "Cerrar" visible. Mantener esta convención al agregar
+nuevos pop-ups.
+
+## Guardas contra doble-submit (operaciones de dinero)
+
+- Checkout (`_confirmSale`) y registro de pago usan un flag síncrono (`_submitting`/`paying`)
+  seteado ANTES del primer `await`, porque un doble-tap rápido dispara dos veces antes de
+  que el botón se redibuje deshabilitado → sin la guarda se duplicaba la venta / quedaba
+  deuda negativa.
+- El sobrepago de fiado está validado en la UI (no puede superar la deuda).
+
 ## Por implementar
 
 - CEO preview mode: navegar cualquier negocio en modo lectura (ver ventas + inventario, descargar Excel)

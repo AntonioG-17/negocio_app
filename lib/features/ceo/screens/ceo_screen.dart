@@ -39,7 +39,7 @@ class CeoScreen extends ConsumerWidget {
             : ListView.separated(
                 padding: const EdgeInsets.all(20),
                 itemCount: list.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                separatorBuilder: (_, _) => const SizedBox(height: 12),
                 itemBuilder: (_, i) => _BusinessCard(business: list[i]),
               ),
       ),
@@ -55,6 +55,7 @@ class CeoScreen extends ConsumerWidget {
     final ctrl = TextEditingController();
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppTheme.surface,
         title: const Text('Nuevo negocio'),
