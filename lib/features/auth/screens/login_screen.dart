@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:negocio_app/core/constants/app_constants.dart';
 import 'package:negocio_app/core/theme/app_theme.dart';
 import 'package:negocio_app/features/auth/providers/auth_provider.dart';
 
@@ -116,6 +117,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 strokeWidth: 2, color: Colors.black),
                           )
                         : const Text('Iniciar sesión'),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Center(
+                  child: Text(
+                    AppConstants.appVersion,
+                    style: const TextStyle(
+                        color: AppTheme.onSurfaceMuted, fontSize: 12),
                   ),
                 ),
               ],

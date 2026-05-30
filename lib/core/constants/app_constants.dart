@@ -1,5 +1,6 @@
 class AppConstants {
   static const String appName = 'NegocioApp';
+  static const String appVersion = 'v1.0.1';
 
   // CEO — la única cuenta con acceso total. Crear una vez en Firebase Console.
   static const String ceoEmail = 'antonio.geldes1701@gmail.com';

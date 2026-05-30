@@ -24,6 +24,30 @@
     scripts with ?v=<version> so even files marked `immutable` are re-fetched.
   -->
   <script>
+    // Watchdog de auto-recuperación: si Flutter no renderiza en ~12s (caché
+    // corrupto/atascado), limpia TODO y recarga una sola vez para auto-sanar.
+    (function () {
+      function flutterBooted() {
+        return !!document.querySelector('flutter-view, flt-glass-pane, flt-scene-host, canvas');
+      }
+      setTimeout(async function () {
+        if (flutterBooted()) return;
+        if (sessionStorage.getItem('_watchdog_reloaded') === '1') return;
+        sessionStorage.setItem('_watchdog_reloaded', '1');
+        try {
+          if ('caches' in window) {
+            var keys = await caches.keys();
+            await Promise.all(keys.map(function (k) { return caches.delete(k); }));
+          }
+          if ('serviceWorker' in navigator) {
+            var regs = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(regs.map(function (r) { return r.unregister(); }));
+          }
+        } catch (e) {}
+        location.reload();
+      }, 12000);
+    })();
+
     (async function () {
       function loadScript(src) {
         return new Promise(function (resolve) {
