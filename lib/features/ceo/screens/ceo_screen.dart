@@ -52,10 +52,33 @@ class CeoScreen extends ConsumerWidget {
   }
 
   void _showCreateDialog(BuildContext context, WidgetRef ref) {
+    final ctrl = TextEditingController();
     showDialog(
       context: context,
-      barrierDismissible: false,
-      builder: (_) => const _CreateBusinessDialog(),
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.surface,
+        title: const Text('Nuevo negocio'),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: 'Nombre del negocio'),
+          textCapitalization: TextCapitalization.words,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (ctrl.text.trim().isEmpty) return;
+              await ref.read(authNotifierProvider.notifier).createBusiness(ctrl.text);
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+            child: const Text('Crear'),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -96,7 +119,7 @@ class _BusinessCard extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(Icons.check_circle, color: AppTheme.success, size: 20),
+            const Icon(Icons.arrow_forward_ios, color: AppTheme.onSurfaceMuted, size: 16),
           ],
         ),
       ),
@@ -105,217 +128,6 @@ class _BusinessCard extends StatelessWidget {
 
   String _fmt(DateTime d) =>
       '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
-}
-
-// ────────────────────────────────────────────────
-// Dialogo: crear negocio + admin
-// ────────────────────────────────────────────────
-
-class _CreateBusinessDialog extends ConsumerStatefulWidget {
-  const _CreateBusinessDialog();
-
-  @override
-  ConsumerState<_CreateBusinessDialog> createState() =>
-      _CreateBusinessDialogState();
-}
-
-class _CreateBusinessDialogState
-    extends ConsumerState<_CreateBusinessDialog> {
-  final _formKey = GlobalKey<FormState>();
-  final _bizCtrl = TextEditingController();
-  final _nameCtrl = TextEditingController();
-  final _emailCtrl = TextEditingController();
-  final _passCtrl = TextEditingController();
-  bool _obscure = true;
-  bool _done = false;
-
-  @override
-  void dispose() {
-    _bizCtrl.dispose();
-    _nameCtrl.dispose();
-    _emailCtrl.dispose();
-    _passCtrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-    await ref.read(authNotifierProvider.notifier).createBusinessWithAdmin(
-          businessName: _bizCtrl.text,
-          adminName: _nameCtrl.text,
-          adminEmail: _emailCtrl.text,
-          adminPassword: _passCtrl.text,
-        );
-    final s = ref.read(authNotifierProvider);
-    if (!mounted) return;
-    if (s.hasError) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(_friendlyError(s.error)),
-        backgroundColor: AppTheme.error,
-      ));
-    } else {
-      setState(() => _done = true);
-    }
-  }
-
-  String _friendlyError(Object? e) {
-    final msg = e.toString();
-    if (msg.contains('email-already-in-use')) return 'Ese correo ya está registrado';
-    return 'Error al crear. Verifica los datos.';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final loading = ref.watch(authNotifierProvider).isLoading;
-
-    if (_done) {
-      return AlertDialog(
-        backgroundColor: AppTheme.surface,
-        title: const Row(children: [
-          Icon(Icons.check_circle, color: AppTheme.success),
-          SizedBox(width: 8),
-          Text('¡Listo!'),
-        ]),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Negocio "${_bizCtrl.text}" creado.',
-                style: const TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            const Text('Credenciales del admin:',
-                style: TextStyle(color: AppTheme.onSurfaceMuted, fontSize: 12)),
-            const SizedBox(height: 8),
-            _CredBox(label: 'Correo', value: _emailCtrl.text),
-            const SizedBox(height: 6),
-            _CredBox(label: 'Contraseña', value: _passCtrl.text),
-            const SizedBox(height: 12),
-            const Text(
-              'Guarda estas credenciales y entrégalas al admin.',
-              style: TextStyle(color: AppTheme.onSurfaceMuted, fontSize: 12),
-            ),
-          ],
-        ),
-        actions: [
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cerrar'),
-          ),
-        ],
-      );
-    }
-
-    return AlertDialog(
-      backgroundColor: AppTheme.surface,
-      title: const Text('Nuevo negocio + Admin'),
-      content: SingleChildScrollView(
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: _bizCtrl,
-                decoration:
-                    const InputDecoration(labelText: 'Nombre del negocio'),
-                validator: (v) =>
-                    v?.trim().isEmpty == true ? 'Requerido' : null,
-              ),
-              const SizedBox(height: 16),
-              const Divider(),
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: Text('Cuenta del admin',
-                    style: TextStyle(
-                        color: AppTheme.onSurfaceMuted, fontSize: 12)),
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _nameCtrl,
-                decoration: const InputDecoration(labelText: 'Nombre del admin'),
-                validator: (v) =>
-                    v?.trim().isEmpty == true ? 'Requerido' : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _emailCtrl,
-                keyboardType: TextInputType.emailAddress,
-                decoration:
-                    const InputDecoration(labelText: 'Correo del admin'),
-                validator: (v) =>
-                    v?.contains('@') == true ? null : 'Correo inválido',
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _passCtrl,
-                obscureText: _obscure,
-                decoration: InputDecoration(
-                  labelText: 'Contraseña del admin',
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                        _obscure ? Icons.visibility_off : Icons.visibility),
-                    onPressed: () => setState(() => _obscure = !_obscure),
-                  ),
-                ),
-                validator: (v) =>
-                    (v?.length ?? 0) >= 6 ? null : 'Mínimo 6 caracteres',
-              ),
-            ],
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: loading ? null : () => Navigator.pop(context),
-          child: const Text('Cancelar'),
-        ),
-        ElevatedButton(
-          onPressed: loading ? null : _submit,
-          child: loading
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                      strokeWidth: 2, color: Colors.black))
-              : const Text('Crear'),
-        ),
-      ],
-    );
-  }
-}
-
-class _CredBox extends StatelessWidget {
-  final String label;
-  final String value;
-  const _CredBox({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceVariant,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label,
-                    style: const TextStyle(
-                        color: AppTheme.onSurfaceMuted, fontSize: 11)),
-                const SizedBox(height: 2),
-                Text(value,
-                    style: const TextStyle(fontWeight: FontWeight.bold)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _EmptyState extends StatelessWidget {
