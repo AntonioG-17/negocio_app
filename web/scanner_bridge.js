@@ -1,8 +1,14 @@
 (function () {
   'use strict';
 
+  // Barcode scanning engine: Quagga2 (1D-optimized — EAN/UPC/Code128/39).
+  // ZXing (html5-qrcode) failed to decode 1D product barcodes on Safari iOS
+  // because it needs a razor-sharp image. Quagga2 does its own patch-based
+  // localization + binarization and tolerates blur/angle far better.
+
   var _overlay = null;
-  var _scanner = null;
+  var _running = false;
+  var _detected = false;
   var _detectCb = null;
   var _cancelCb = null;
   var _triggerBtn = null;
@@ -41,35 +47,35 @@
 
   // ── helpers ──────────────────────────────────────────────────────────────
 
-  // Restrict to the 1D barcode formats we actually use (+ QR). Fewer formats
-  // means ZXing spends every frame on the right decoders → far more reliable
-  // 1D reads on Safari iOS, which has no native BarcodeDetector.
-  function supportedFormats() {
-    var F = window.Html5QrcodeSupportedFormats;
-    if (!F) return undefined;
-    return [
-      F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E,
-      F.CODE_128, F.CODE_39, F.CODE_93, F.ITF,
-      F.CODABAR, F.QR_CODE,
-    ];
+  // Average decode error of the individual bars; lower = higher confidence.
+  // Rejects noisy misreads (Quagga can briefly emit garbage on a bad frame).
+  function avgError(result) {
+    try {
+      var codes = (result.codeResult.decodedCodes || [])
+        .filter(function (c) { return typeof c.error === 'number'; });
+      if (!codes.length) return 1;
+      var sum = codes.reduce(function (a, c) { return a + c.error; }, 0);
+      return sum / codes.length;
+    } catch (e) {
+      return 1;
+    }
   }
 
-  function qrboxFn(vw, vh) {
-    // Wide, short window suited for 1D barcodes.
-    var w = Math.floor(Math.min(vw, 360) * 0.88);
-    var h = Math.floor(Math.min(vh, 320) * 0.50);
-    return { width: Math.max(w, 200), height: Math.max(h, 110) };
+  function stopQuagga() {
+    if (_running && window.Quagga) {
+      try { window.Quagga.offDetected(_onDetected); } catch (e) {}
+      try { window.Quagga.stop(); } catch (e) {}
+    }
+    _running = false;
   }
 
   function removeOverlay() {
-    if (_scanner) {
-      try { _scanner.stop(); } catch (e) {}
-      _scanner = null;
-    }
+    stopQuagga();
     if (_overlay && _overlay.parentNode) {
       _overlay.parentNode.removeChild(_overlay);
     }
     _overlay = null;
+    _detected = false;
     _detectCb = null;
     _cancelCb = null;
   }
@@ -79,6 +85,19 @@
       _triggerBtn.parentNode.removeChild(_triggerBtn);
     }
     _triggerBtn = null;
+  }
+
+  function _onDetected(result) {
+    if (_detected) return;
+    var code = result && result.codeResult && result.codeResult.code;
+    if (!code) return;
+    // Require a confident read to avoid false positives.
+    if (avgError(result) > 0.20) return;
+    _detected = true;
+    var cb = _detectCb;
+    beep();
+    removeOverlay();
+    if (cb) cb(code);
   }
 
   function launchScanner() {
@@ -106,59 +125,100 @@
     var container = document.createElement('div');
     container.id = '_sc_' + Date.now();
     Object.assign(container.style, {
-      width: '360px', maxWidth: '92vw',
+      width: '360px', maxWidth: '92vw', position: 'relative',
       borderRadius: '12px', overflow: 'hidden', background: '#000',
       minHeight: '280px',
     });
+    // Force Quagga's injected <video>/<canvas> to fill the container width.
+    var styleTag = document.createElement('style');
+    styleTag.textContent =
+      '#' + container.id + ' video, #' + container.id + ' canvas {' +
+      'width:100%!important;height:auto!important;display:block;}';
+    container.appendChild(styleTag);
     _overlay.appendChild(container);
+
+    // Red aiming line across the middle (visual guide for 1D codes).
+    var aim = document.createElement('div');
+    Object.assign(aim.style, {
+      position: 'absolute', left: '6%', right: '6%', top: '50%',
+      height: '2px', background: 'rgba(255,80,80,0.9)',
+      boxShadow: '0 0 8px rgba(255,80,80,0.8)', pointerEvents: 'none',
+    });
+    container.appendChild(aim);
+
+    var hint = document.createElement('p');
+    hint.textContent = 'Mantén el código a ~15 cm y bien iluminado';
+    Object.assign(hint.style, {
+      color: 'rgba(255,255,255,0.6)', fontSize: '13px', margin: '14px 0 0',
+    });
+    _overlay.appendChild(hint);
 
     var btn = document.createElement('button');
     btn.textContent = 'Cancelar';
     Object.assign(btn.style, {
-      marginTop: '20px', padding: '12px 40px',
+      marginTop: '16px', padding: '12px 40px',
       background: 'rgba(255,255,255,0.15)', color: '#fff',
       border: '1px solid rgba(255,255,255,0.35)', borderRadius: '24px',
       fontSize: '16px', cursor: 'pointer', touchAction: 'manipulation',
     });
     btn.addEventListener('click', function (e) {
       e.stopPropagation();
+      var cb = _cancelCb;
       removeOverlay();
-      if (_cancelCb) _cancelCb();
+      if (cb) cb();
     });
     _overlay.appendChild(btn);
 
     document.body.appendChild(_overlay);
 
-    // ── Start html5-qrcode ────────────────────────────────────────────────
-    try {
-      var cfg = {
-        verbose: false,
-        experimentalFeatures: { useBarCodeDetectorIfSupported: true },
-      };
-      var fmts = supportedFormats();
-      if (fmts) cfg.formatsToSupport = fmts;
-
-      _scanner = new Html5Qrcode(container.id, cfg);
-      _scanner.start(
-        // Higher resolution → sharper bars → ZXing reads 1D codes reliably.
-        { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
-        { fps: 15, qrbox: qrboxFn, disableFlip: false },
-        function (text) {
-          var cb = _detectCb;
-          beep();
-          removeOverlay();
-          if (cb) cb(text);
-        },
-        function () { /* frame miss — ignore */ }
-      ).catch(function (err) {
-        console.error('[scanner] start failed:', err);
-        container.innerHTML = '<p style="color:#ff5252;padding:16px;text-align:center">No se pudo abrir la cámara.<br>' + err + '</p>';
-      });
-    } catch (e) {
-      console.error('[scanner] init error:', e);
-      removeOverlay();
-      if (_cancelCb) _cancelCb();
+    // ── Start Quagga2 ─────────────────────────────────────────────────────
+    if (!window.Quagga) {
+      container.innerHTML =
+        '<p style="color:#ff5252;padding:16px;text-align:center">' +
+        'Motor de escaneo no disponible.</p>';
+      return;
     }
+
+    _detected = false;
+    window.Quagga.init({
+      inputStream: {
+        name: 'Live',
+        type: 'LiveStream',
+        target: container,
+        constraints: {
+          facingMode: 'environment',
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          aspectRatio: { ideal: 1.7777778 },
+        },
+        // Scan only the central horizontal band where the user aligns the code.
+        area: { top: '30%', right: '0%', left: '0%', bottom: '30%' },
+      },
+      locator: { patchSize: 'medium', halfSample: true },
+      numOfWorkers: 0, // single-thread → reliable on Safari iOS (no worker blobs)
+      frequency: 10,
+      decoder: {
+        readers: [
+          'ean_reader', 'ean_8_reader',
+          'upc_reader', 'upc_e_reader',
+          'code_128_reader', 'code_39_reader',
+        ],
+      },
+      locate: true,
+    }, function (err) {
+      if (err) {
+        console.error('[scanner] Quagga init failed:', err);
+        if (container) {
+          container.innerHTML =
+            '<p style="color:#ff5252;padding:16px;text-align:center">' +
+            'No se pudo abrir la cámara.<br>' + err + '</p>';
+        }
+        return;
+      }
+      _running = true;
+      window.Quagga.start();
+      window.Quagga.onDetected(_onDetected);
+    });
   }
 
   // ── Public API ────────────────────────────────────────────────────────────
@@ -166,10 +226,7 @@
   /**
    * Places a transparent native HTML button exactly over the Flutter scan
    * button so that Safari receives a genuine DOM click (required for
-   * getUserMedia on iOS).
-   *
-   * x, y, w, h — logical pixels (Flutter devicePixelRatio already applied
-   * by the caller if needed; here we expect CSS pixels).
+   * getUserMedia on iOS). x, y, w, h are CSS pixels.
    */
   window.showScanTrigger = function (x, y, w, h, onDetect, onCancel) {
     _detectCb = onDetect;

@@ -49,12 +49,30 @@ Firebase project: `proyecto-app-negocio`
 - El perfil CEO se crea automáticamente en el primer login (no había perfil antes)
 - Base de datos limpiada (slate limpio, sin datos demo)
 
-## Scanner POS (web/PWA)
+## Scanner de código de barras (web/PWA en Safari iOS)
 
-Fix en `lib/features/pos/screens/pos_screen.dart`:
-- `autoStart: false`, `CameraFacing.back`, formatos explícitos (EAN-13, EAN-8, Code128, UPC-A, UPC-E, QR)
-- `WidgetsBindingObserver` para ciclo de vida
-- Start/stop manual + popups en vez de SnackBars para producto no encontrado
+**Motor:** Quagga2 (`web/quagga.min.js`, bundleado local), NO html5-qrcode/ZXing.
+ZXing falla decodificando códigos 1D borrosos/en ángulo en Safari iOS; Quagga2
+está hecho para 1D (EAN/UPC/Code128/39) y tolera mucho mejor imágenes imperfectas.
+
+**Arquitectura (bridge JS ↔ Dart):**
+- `web/scanner_bridge.js` — overlay full-screen, init de Quagga, beep + vibración
+  al detectar, línea de mira roja, hint de distancia (~15 cm).
+- `lib/core/scanner/web_scanner_bridge.dart` — bindings `dart:js_interop`:
+  `showScanTrigger` / `hideScanTrigger` / `startWebScanner` / `stopWebScanner`.
+- `web/index.html` carga `quagga.min.js` + `scanner_bridge.js`.
+
+**Truco clave para iOS (getUserMedia exige gesto DOM real):**
+`showScanTrigger(x,y,w,h,...)` coloca un `<button>` HTML transparente EXACTAMENTE
+encima del botón Flutter de escanear. Se pre-arma en `initState` (POS) o al activar
+el switch de código de barras (inventario), así el PRIMER toque va directo al botón
+HTML y Safari reconoce el gesto. El `AudioContext` del beep se prepara en ese click.
+
+**Config Quagga relevante:** `numOfWorkers: 0` (single-thread, evita worker-blobs
+que rompen en Safari), `halfSample: true`, `patchSize: 'medium'`, `area` central,
+resolución `1280x720 ideal`, rechazo de lecturas con `avgError > 0.20`.
+
+**Pantallas que escanean:** POS (`pos_screen.dart`) e inventario (`product_form_screen.dart`).
 
 ## Módulos implementados
 
