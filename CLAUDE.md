@@ -106,6 +106,13 @@ Fix en `lib/features/pos/screens/pos_screen.dart`:
 - Admin: dashboard muestra el total del día de TODO el negocio (todos los trabajadores + él mismo)
 - Cada venta en Firestore guarda `userId` + `userName` → el Excel refleja quién hizo cada venta
 
+## CEO Panel — flujo actual
+
+- "Nuevo negocio" solo pide el nombre (sin creación de admin obligatoria)
+- Admin/trabajadores se agregan separado (parte del CEO preview mode pendiente)
+- Tarjeta de negocio tiene flecha `>` (hint de que se podrá entrar en preview mode)
+
 ## Por implementar
 
 - CEO preview mode: navegar cualquier negocio en modo lectura (ver ventas + inventario, descargar Excel)
+- Al entrar al negocio desde CEO panel: poder agregar admin/trabajadores a ese negocio
