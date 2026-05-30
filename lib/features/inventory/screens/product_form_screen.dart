@@ -25,6 +25,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   final _stockCtrl = TextEditingController(text: '0');
   final _minStockCtrl = TextEditingController(text: '${AppConstants.defaultMinStock}');
   final _categoryCtrl = TextEditingController();
+  final _scanBtnKey = GlobalKey();
   bool _hasBarcode = false;
   Product? _existingProduct;
 
@@ -54,6 +55,8 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
 
   @override
   void dispose() {
+    hideScanTrigger();
+    stopWebScanner();
     _nameCtrl.dispose();
     _barcodeCtrl.dispose();
     _priceCtrl.dispose();
@@ -64,17 +67,27 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     super.dispose();
   }
 
-  void _scanBarcode() {
-    startWebScanner(
+  void _armScanTrigger() {
+    final box = _scanBtnKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return;
+    final offset = box.localToGlobal(Offset.zero);
+    showScanTrigger(
+      x: offset.dx,
+      y: offset.dy,
+      width: box.size.width,
+      height: box.size.height,
       onDetect: (code) {
         if (mounted) {
           setState(() {
             _barcodeCtrl.text = code;
             _hasBarcode = true;
           });
+          Future.microtask(_armScanTrigger);
         }
       },
-      onCancel: () {},
+      onCancel: () {
+        if (mounted) Future.microtask(_armScanTrigger);
+      },
     );
   }
 
@@ -243,7 +256,14 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
               SwitchListTile(
                 title: const Text('Este producto tiene codigo de barras'),
                 value: _hasBarcode,
-                onChanged: (v) => setState(() => _hasBarcode = v),
+                onChanged: (v) {
+                  setState(() => _hasBarcode = v);
+                  if (v) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) => _armScanTrigger());
+                  } else {
+                    hideScanTrigger();
+                  }
+                },
                 activeThumbColor: AppTheme.primary,
                 contentPadding: EdgeInsets.zero,
               ),
@@ -264,7 +284,8 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                     ),
                     const SizedBox(width: 12),
                     IconButton.filled(
-                      onPressed: _scanBarcode,
+                      key: _scanBtnKey,
+                      onPressed: _armScanTrigger,
                       icon: const Icon(Icons.qr_code_scanner),
                       style: IconButton.styleFrom(
                         backgroundColor: AppTheme.primary,

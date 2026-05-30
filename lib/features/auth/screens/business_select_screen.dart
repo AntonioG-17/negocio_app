@@ -24,7 +24,7 @@ class BusinessSelectScreen extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),
         data: (list) => list.isEmpty
-            ? _EmptyBusinesses(onCreated: () => ref.invalidate(userBusinessesProvider))
+            ? _EmptyBusinesses(onLogout: () => ref.read(authNotifierProvider.notifier).logout())
             : ListView.separated(
                 padding: const EdgeInsets.all(20),
                 itemCount: list.length,
@@ -55,63 +55,13 @@ class BusinessSelectScreen extends ConsumerWidget {
                 },
               ),
       ),
-      floatingActionButton: businesses.hasValue
-          ? FloatingActionButton.extended(
-              onPressed: () => _showCreateBusinessDialog(context, ref),
-              icon: const Icon(Icons.add),
-              label: const Text('Nuevo negocio'),
-            )
-          : null,
-    );
-  }
-
-  void _showCreateBusinessDialog(BuildContext context, WidgetRef ref) {
-    final ctrl = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppTheme.surface,
-        title: const Text('Nuevo negocio'),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          decoration: const InputDecoration(labelText: 'Nombre del negocio'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (ctrl.text.trim().isEmpty) return;
-              await ref.read(authNotifierProvider.notifier).createBusiness(ctrl.text);
-              if (ctx.mounted) Navigator.pop(ctx);
-            },
-            child: const Text('Crear'),
-          ),
-        ],
-      ),
     );
   }
 }
 
-class _EmptyBusinesses extends ConsumerStatefulWidget {
-  final VoidCallback onCreated;
-  const _EmptyBusinesses({required this.onCreated});
-
-  @override
-  ConsumerState<_EmptyBusinesses> createState() => _EmptyBusinessesState();
-}
-
-class _EmptyBusinessesState extends ConsumerState<_EmptyBusinesses> {
-  final _ctrl = TextEditingController();
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
+class _EmptyBusinesses extends StatelessWidget {
+  final VoidCallback onLogout;
+  const _EmptyBusinesses({required this.onLogout});
 
   @override
   Widget build(BuildContext context) {
@@ -122,25 +72,19 @@ class _EmptyBusinessesState extends ConsumerState<_EmptyBusinesses> {
         children: [
           const Icon(Icons.store_outlined, size: 80, color: AppTheme.onSurfaceMuted),
           const SizedBox(height: 20),
-          Text('No tienes negocios aun',
+          Text('Sin negocio asignado',
               style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),
-          Text('Crea tu primer negocio para comenzar',
-              style: Theme.of(context).textTheme.bodyMedium,
-              textAlign: TextAlign.center),
-          const SizedBox(height: 32),
-          TextField(
-            controller: _ctrl,
-            decoration: const InputDecoration(labelText: 'Nombre del negocio'),
+          const Text(
+            'Tu cuenta aún no está asociada a ningún negocio.\nContacta al administrador.',
+            style: TextStyle(color: AppTheme.onSurfaceMuted),
+            textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: () async {
-              if (_ctrl.text.trim().isEmpty) return;
-              await ref.read(authNotifierProvider.notifier).createBusiness(_ctrl.text);
-              widget.onCreated();
-            },
-            child: const Text('Crear negocio'),
+          const SizedBox(height: 32),
+          OutlinedButton.icon(
+            onPressed: onLogout,
+            icon: const Icon(Icons.logout),
+            label: const Text('Cerrar sesión'),
           ),
         ],
       ),

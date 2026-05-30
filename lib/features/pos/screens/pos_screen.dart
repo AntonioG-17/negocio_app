@@ -18,17 +18,37 @@ class POSScreen extends ConsumerStatefulWidget {
 
 class _POSScreenState extends ConsumerState<POSScreen> {
   bool _isProcessingBarcode = false;
+  final _scanBtnKey = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    // Pre-arm the native HTML button so the very first tap goes directly to it.
+    // Safari requires getUserMedia to be called from a genuine DOM click event.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _armScanTrigger());
+  }
 
   @override
   void dispose() {
+    hideScanTrigger();
     stopWebScanner();
     super.dispose();
   }
 
-  void _toggleScanner() {
-    startWebScanner(
-      onDetect: _onBarcodeDetected,
-      onCancel: () {},
+  void _armScanTrigger() {
+    final box = _scanBtnKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return;
+    final offset = box.localToGlobal(Offset.zero);
+    showScanTrigger(
+      x: offset.dx,
+      y: offset.dy,
+      width: box.size.width,
+      height: box.size.height,
+      onDetect: (barcode) {
+        _onBarcodeDetected(barcode);
+        Future.microtask(_armScanTrigger);
+      },
+      onCancel: () => Future.microtask(_armScanTrigger),
     );
   }
 
@@ -146,7 +166,8 @@ class _POSScreenState extends ConsumerState<POSScreen> {
           _BottomBar(
             total: total,
             cartCount: cart.length,
-            onScan: _toggleScanner,
+            scanBtnKey: _scanBtnKey,
+            onScan: _armScanTrigger,
             onSearch: _showManualSearch,
             onCheckout: () => context.go('/pos/checkout'),
           ),
@@ -235,6 +256,7 @@ class _CartTile extends ConsumerWidget {
 class _BottomBar extends StatelessWidget {
   final double total;
   final int cartCount;
+  final Key scanBtnKey;
   final VoidCallback onScan;
   final VoidCallback onSearch;
   final VoidCallback onCheckout;
@@ -242,6 +264,7 @@ class _BottomBar extends StatelessWidget {
   const _BottomBar({
     required this.total,
     required this.cartCount,
+    required this.scanBtnKey,
     required this.onScan,
     required this.onSearch,
     required this.onCheckout,
@@ -262,6 +285,7 @@ class _BottomBar extends StatelessWidget {
             children: [
               Expanded(
                 child: OutlinedButton.icon(
+                  key: scanBtnKey,
                   onPressed: onScan,
                   icon: const Icon(Icons.qr_code_scanner),
                   label: const Text('Escanear'),
