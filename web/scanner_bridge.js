@@ -13,6 +13,10 @@
   var _cancelCb = null;
   var _triggerBtn = null;
   var _audioCtx = null;
+  var _debugEl = null;
+  var _lastCode = null;
+  var _confirmCount = 0;
+  var _frames = 0;
 
   // ── audio / haptics ────────────────────────────────────────────────────────
 
@@ -75,9 +79,13 @@
       _overlay.parentNode.removeChild(_overlay);
     }
     _overlay = null;
+    _debugEl = null;
     _detected = false;
     _detectCb = null;
     _cancelCb = null;
+    _lastCode = null;
+    _confirmCount = 0;
+    _frames = 0;
   }
 
   function removeTriggerBtn() {
@@ -87,17 +95,39 @@
     _triggerBtn = null;
   }
 
-  function _onDetected(result) {
-    if (_detected) return;
-    var code = result && result.codeResult && result.codeResult.code;
-    if (!code) return;
-    // Require a confident read to avoid false positives.
-    if (avgError(result) > 0.20) return;
+  function _accept(code) {
     _detected = true;
     var cb = _detectCb;
     beep();
     removeOverlay();
     if (cb) cb(code);
+  }
+
+  function _onDetected(result) {
+    if (_detected) return;
+    var code = result && result.codeResult && result.codeResult.code;
+    if (!code) return;
+    var err = avgError(result);
+
+    if (_debugEl) {
+      _debugEl.textContent = 'Leído: ' + code + '  (calidad ' +
+        Math.round((1 - err) * 100) + '%)';
+      _debugEl.style.color = '#7CFC8A';
+    }
+
+    // Supermarket-fast: accept a sharp read instantly. EAN/UPC carry a
+    // checksum so confident single reads are safe. For blurry reads, require
+    // the same code twice in a row so we never act on a random misread.
+    if (code === _lastCode) {
+      _confirmCount++;
+    } else {
+      _lastCode = code;
+      _confirmCount = 1;
+    }
+
+    if (err < 0.15 || _confirmCount >= 2) {
+      _accept(code);
+    }
   }
 
   function launchScanner() {
@@ -147,11 +177,20 @@
     container.appendChild(aim);
 
     var hint = document.createElement('p');
-    hint.textContent = 'Mantén el código a ~15 cm y bien iluminado';
+    hint.textContent = 'Acerca el código y muévelo despacio hasta que enfoque';
     Object.assign(hint.style, {
       color: 'rgba(255,255,255,0.6)', fontSize: '13px', margin: '14px 0 0',
     });
     _overlay.appendChild(hint);
+
+    // Live diagnostic line — tells us whether frames flow and codes decode.
+    _debugEl = document.createElement('p');
+    _debugEl.textContent = 'Iniciando cámara…';
+    Object.assign(_debugEl.style, {
+      color: 'rgba(255,255,255,0.45)', fontSize: '12px', margin: '6px 0 0',
+      fontFamily: 'monospace', minHeight: '16px', textAlign: 'center',
+    });
+    _overlay.appendChild(_debugEl);
 
     var btn = document.createElement('button');
     btn.textContent = 'Cancelar';
@@ -191,8 +230,6 @@
           height: { ideal: 720 },
           aspectRatio: { ideal: 1.7777778 },
         },
-        // Scan only the central horizontal band where the user aligns the code.
-        area: { top: '30%', right: '0%', left: '0%', bottom: '30%' },
       },
       locator: { patchSize: 'medium', halfSample: true },
       numOfWorkers: 0, // single-thread → reliable on Safari iOS (no worker blobs)
@@ -218,6 +255,15 @@
       _running = true;
       window.Quagga.start();
       window.Quagga.onDetected(_onDetected);
+      // Per-frame feedback: if this counter climbs but no code is ever read,
+      // the camera can't focus the bars (move the code / improve light).
+      window.Quagga.onProcessed(function () {
+        if (_detected) return;
+        _frames++;
+        if (_debugEl && _debugEl.style.color !== 'rgb(124, 252, 138)') {
+          _debugEl.textContent = 'Buscando código… (' + _frames + ' frames)';
+        }
+      });
     });
   }
 
