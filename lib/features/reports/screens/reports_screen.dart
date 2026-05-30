@@ -32,10 +32,15 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       final period = ref.read(reportPeriodProvider);
       final sales = ref.read(reportSalesProvider).valueOrNull ?? [];
       final summary = ref.read(reportSummaryProvider);
+      // Fiados: deudas actuales + pagos del periodo (historial respaldado en el Excel).
+      final clients = await ref.read(reportClientsProvider.future);
+      final fiadoPayments = await ref.read(reportFiadoPaymentsProvider.future);
       await exportReportToExcel(
         period: period,
         sales: sales,
         summary: summary,
+        clients: clients,
+        fiadoPayments: fiadoPayments,
         sharePositionOrigin: origin,
       );
     } catch (e) {

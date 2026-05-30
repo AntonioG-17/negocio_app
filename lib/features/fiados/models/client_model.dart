@@ -57,6 +57,7 @@ class Client {
 class FiadoPayment {
   final String id;
   final String clientId;
+  final String? clientName;
   final String businessId;
   final double amount;
   final String? note;
@@ -65,6 +66,7 @@ class FiadoPayment {
   const FiadoPayment({
     required this.id,
     required this.clientId,
+    this.clientName,
     required this.businessId,
     required this.amount,
     this.note,
@@ -76,6 +78,7 @@ class FiadoPayment {
     return FiadoPayment(
       id: doc.id,
       clientId: d['clientId'] as String,
+      clientName: d['clientName'] as String?,
       businessId: d['businessId'] as String,
       amount: (d['amount'] as num).toDouble(),
       note: d['note'] as String?,
@@ -85,6 +88,7 @@ class FiadoPayment {
 
   Map<String, dynamic> toFirestore() => {
         'clientId': clientId,
+        'clientName': clientName,
         'businessId': businessId,
         'amount': amount,
         'note': note,

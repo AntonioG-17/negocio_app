@@ -125,7 +125,23 @@ resolución `1280x720 ideal`, rechazo de lecturas con `avgError > 0.20`.
 ## Excel — estructura actual
 
 **Hoja "Resumen":** Periodo, Exportado, Ingresos totales, Total ventas, Cobrado, Fiados  
-**Hoja "Ventas":** Fecha, Hora, Trabajador, Productos, Total, Tipo de pago, Cliente
+**Hoja "Ventas":** Fecha, Hora, Trabajador, Productos, Total, Tipo de pago, Cliente  
+**Hoja "Fiados":** Cliente, Teléfono, Deuda actual (solo deudores) + TOTAL POR COBRAR  
+**Hoja "Pagos fiados":** Fecha, Hora, Cliente, Monto, Nota (del periodo) + TOTAL PAGADO
+
+- Las hojas de fiados solo aparecen si hay datos. Se arman desde `reportClientsProvider`
+  y `reportFiadoPaymentsProvider`. El botón de exportar hoy se muestra si hay ventas en
+  el periodo (los fiados viajan junto al export).
+- Cada `FiadoPayment` guarda `clientName` denormalizado → el historial de pagos sobrevive
+  aunque se borre el cliente.
+
+## Integridad de datos
+
+- **Código de barras único:** `product_form` valida antes de guardar que ningún otro
+  producto use el mismo código (si no, el escáner solo encontraría el primero).
+- **Stock sin sobreventa:** `POSNotifier.checkout` usa una transacción Firestore que
+  re-lee el stock real y aborta si el carrito supera lo disponible (mensaje específico
+  "Stock insuficiente de X (quedan N)"). Nunca queda stock negativo.
 
 ## Activación de trabajadores
 

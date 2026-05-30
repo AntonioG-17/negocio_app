@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:negocio_app/core/utils/formatters.dart';
+import 'package:negocio_app/features/fiados/models/client_model.dart';
 import 'package:negocio_app/features/pos/models/sale_model.dart';
 import 'package:negocio_app/features/reports/providers/reports_provider.dart';
 
@@ -12,6 +13,8 @@ Future<void> exportReportToExcel({
   required ReportPeriod period,
   required List<Sale> sales,
   required ReportSummary summary,
+  List<Client> clients = const [],
+  List<FiadoPayment> fiadoPayments = const [],
   Rect? sharePositionOrigin,
 }) async {
   final excel = Excel.createExcel();
@@ -61,6 +64,59 @@ Future<void> exportReportToExcel({
       DoubleCellValue(sale.total),
       TextCellValue(payLabel),
       TextCellValue(sale.clientName ?? '-'),
+    ]);
+  }
+
+  // ── Hoja 3: Fiados (deudas actuales) ──────────────────────────
+  if (clients.isNotEmpty) {
+    final cliSheet = excel['Fiados'];
+    cliSheet.appendRow([
+      TextCellValue('Cliente'),
+      TextCellValue('Telefono'),
+      TextCellValue('Deuda actual'),
+    ]);
+    final conDeuda = clients.where((c) => c.totalDebt > 0).toList();
+    for (final c in conDeuda) {
+      cliSheet.appendRow([
+        TextCellValue(c.name),
+        TextCellValue(c.phone ?? '-'),
+        DoubleCellValue(c.totalDebt),
+      ]);
+    }
+    cliSheet.appendRow([TextCellValue(''), TextCellValue(''), TextCellValue('')]);
+    cliSheet.appendRow([
+      TextCellValue('TOTAL POR COBRAR'),
+      TextCellValue(''),
+      DoubleCellValue(conDeuda.fold<double>(0, (a, c) => a + c.totalDebt)),
+    ]);
+  }
+
+  // ── Hoja 4: Pagos de fiados del periodo ───────────────────────
+  if (fiadoPayments.isNotEmpty) {
+    final pagSheet = excel['Pagos fiados'];
+    pagSheet.appendRow([
+      TextCellValue('Fecha'),
+      TextCellValue('Hora'),
+      TextCellValue('Cliente'),
+      TextCellValue('Monto'),
+      TextCellValue('Nota'),
+    ]);
+    for (final p in fiadoPayments) {
+      pagSheet.appendRow([
+        TextCellValue(formatDate(p.createdAt)),
+        TextCellValue(formatTime(p.createdAt)),
+        TextCellValue(p.clientName ?? '-'),
+        DoubleCellValue(p.amount),
+        TextCellValue(p.note ?? '-'),
+      ]);
+    }
+    pagSheet.appendRow([TextCellValue(''), TextCellValue(''), TextCellValue(''), TextCellValue(''), TextCellValue('')]);
+    pagSheet.appendRow([
+      TextCellValue('TOTAL PAGADO'),
+      TextCellValue(''),
+      TextCellValue(''),
+      DoubleCellValue(fiadoPayments.fold<double>(0, (a, p) => a + p.amount)),
+      TextCellValue(''),
     ]);
   }
 

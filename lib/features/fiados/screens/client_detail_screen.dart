@@ -211,6 +211,7 @@ class ClientDetailScreen extends ConsumerWidget {
                           setBtnState(() {});
                           await ref.read(fiadosNotifierProvider.notifier).addPayment(
                                 clientId: client.id,
+                                clientName: client.name,
                                 amount: amount,
                                 note: noteCtrl.text.isEmpty ? null : noteCtrl.text,
                               );

@@ -93,6 +93,24 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // Código de barras único: evita que dos productos compartan el mismo código
+    // (si no, al escanear siempre se encontraría solo el primero).
+    if (_hasBarcode) {
+      final code = _barcodeCtrl.text.trim();
+      final products = ref.read(productsStreamProvider).valueOrNull ?? [];
+      final dup = products.where((p) => p.barcode == code && p.id != _existingProduct?.id).firstOrNull;
+      if (dup != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Ese código ya lo usa "${dup.name}"'),
+            backgroundColor: AppTheme.warning,
+          ),
+        );
+        return;
+      }
+    }
+
     final notifier = ref.read(inventoryNotifierProvider.notifier);
     if (_existingProduct != null) {
       final updated = Product(

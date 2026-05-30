@@ -67,6 +67,7 @@ class FiadosNotifier extends AsyncNotifier<void> {
 
   Future<void> addPayment({
     required String clientId,
+    String? clientName,
     required double amount,
     String? note,
   }) async {
@@ -75,6 +76,7 @@ class FiadosNotifier extends AsyncNotifier<void> {
       final payment = FiadoPayment(
         id: _uuid.v4(),
         clientId: clientId,
+        clientName: clientName,
         businessId: _businessId,
         amount: amount,
         note: note?.isEmpty == true ? null : note,

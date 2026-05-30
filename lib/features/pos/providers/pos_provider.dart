@@ -110,34 +110,54 @@ class POSNotifier extends AsyncNotifier<void> {
         createdAt: DateTime.now(),
       );
 
-      final batch = _db.batch();
+      // Transacción: re-lee el stock real y aborta si el carrito supera lo
+      // disponible (el stock pudo cambiar mientras estaba en el carrito).
+      // Así nunca queda stock negativo ni se sobrevende.
+      await _db.runTransaction((txn) async {
+        // Fase de lectura (todas las lecturas antes de cualquier escritura).
+        final snaps = <String, DocumentSnapshot>{};
+        for (final item in cart) {
+          final ref = _db.collection(AppConstants.colProducts).doc(item.product.id);
+          snaps[item.product.id] = await txn.get(ref);
+        }
 
-      batch.set(
-        _db.collection(AppConstants.colSales).doc(sale.id),
-        sale.toFirestore(),
-      );
+        // Validación.
+        for (final item in cart) {
+          final snap = snaps[item.product.id]!;
+          if (!snap.exists) {
+            throw Exception('"${item.product.name}" ya no existe en el inventario');
+          }
+          final stock = ((snap.data() as Map<String, dynamic>)['stock'] as num?)?.toInt() ?? 0;
+          if (stock < item.quantity) {
+            throw Exception('Stock insuficiente de "${item.product.name}" (quedan $stock)');
+          }
+        }
 
-      for (final item in cart) {
-        batch.update(
-          _db.collection(AppConstants.colProducts).doc(item.product.id),
-          {
-            'stock': FieldValue.increment(-item.quantity),
-            'updatedAt': FieldValue.serverTimestamp(),
-          },
+        // Fase de escritura.
+        txn.set(
+          _db.collection(AppConstants.colSales).doc(sale.id),
+          sale.toFirestore(),
         );
-      }
+        for (final item in cart) {
+          txn.update(
+            _db.collection(AppConstants.colProducts).doc(item.product.id),
+            {
+              'stock': FieldValue.increment(-item.quantity),
+              'updatedAt': FieldValue.serverTimestamp(),
+            },
+          );
+        }
+        if (paymentType == PaymentType.fiado && client != null) {
+          txn.update(
+            _db.collection(AppConstants.colClients).doc(client.id),
+            {
+              'totalDebt': FieldValue.increment(total),
+              'updatedAt': FieldValue.serverTimestamp(),
+            },
+          );
+        }
+      });
 
-      if (paymentType == PaymentType.fiado && client != null) {
-        batch.update(
-          _db.collection(AppConstants.colClients).doc(client.id),
-          {
-            'totalDebt': FieldValue.increment(total),
-            'updatedAt': FieldValue.serverTimestamp(),
-          },
-        );
-      }
-
-      await batch.commit();
       ref.read(cartProvider.notifier).clear();
     });
     if (!state.hasError) state = const AsyncData(null);

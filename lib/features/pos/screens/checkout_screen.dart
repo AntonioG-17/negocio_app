@@ -59,8 +59,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         _showSuccessDialog(change: change);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error al registrar venta. Intenta nuevamente.'),
+          SnackBar(
+            content: Text(_friendlySaleError(state.error)),
             backgroundColor: AppTheme.error,
           ),
         );
@@ -70,6 +70,17 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     } finally {
       _submitting = false;
     }
+  }
+
+  // Muestra el mensaje de la excepción (p. ej. "Stock insuficiente de ...")
+  // sin el prefijo técnico "Exception:".
+  String _friendlySaleError(Object? error) {
+    if (error == null) return 'Error al registrar venta. Intenta nuevamente.';
+    final msg = error.toString().replaceFirst('Exception: ', '');
+    if (msg.contains('Stock insuficiente') || msg.contains('ya no existe')) {
+      return msg;
+    }
+    return 'Error al registrar venta. Intenta nuevamente.';
   }
 
   // Pregunta con cuánto paga el cliente y muestra el vuelto en vivo.
