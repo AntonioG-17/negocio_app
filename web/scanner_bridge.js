@@ -257,7 +257,7 @@
       // the pixels per bar and was why it processed fast but never read.
       locator: { patchSize: 'medium', halfSample: false },
       numOfWorkers: 0, // single-thread → reliable on Safari iOS (no worker blobs)
-      frequency: 15,
+      frequency: 10, // up to 10 decode attempts/s — instant feel, gentle on CPU
       decoder: {
         readers: [
           'ean_reader', 'ean_8_reader',

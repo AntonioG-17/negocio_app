@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:negocio_app/core/constants/app_constants.dart';
 import 'package:negocio_app/features/auth/providers/auth_provider.dart';
@@ -24,15 +25,15 @@ final reportSalesProvider = FutureProvider<List<Sale>>((ref) async {
   final db = ref.watch(firestoreProvider);
   final startDate = _periodStart(period);
 
+  // Filtro de fecha en el servidor → solo trae el periodo, no toda la colección.
   final snap = await db
       .collection(AppConstants.colSales)
       .where('businessId', isEqualTo: business.id)
+      .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
+      .orderBy('createdAt', descending: true)
       .get();
 
-  final all = snap.docs.map(Sale.fromFirestore).toList();
-  final filtered = all.where((s) => s.createdAt.isAfter(startDate)).toList();
-  filtered.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-  return filtered;
+  return snap.docs.map(Sale.fromFirestore).toList();
 });
 
 // Pagos de fiados del periodo (para el Excel). Se incluye el nombre del cliente
@@ -47,12 +48,11 @@ final reportFiadoPaymentsProvider = FutureProvider<List<FiadoPayment>>((ref) asy
   final snap = await db
       .collection(AppConstants.colPayments)
       .where('businessId', isEqualTo: business.id)
+      .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
+      .orderBy('createdAt', descending: true)
       .get();
 
-  final all = snap.docs.map(FiadoPayment.fromFirestore).toList();
-  final filtered = all.where((p) => p.createdAt.isAfter(startDate)).toList();
-  filtered.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-  return filtered;
+  return snap.docs.map(FiadoPayment.fromFirestore).toList();
 });
 
 // Clientes con su deuda actual (snapshot, para el Excel).

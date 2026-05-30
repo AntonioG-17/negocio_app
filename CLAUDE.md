@@ -135,6 +135,22 @@ resolución `1280x720 ideal`, rechazo de lecturas con `avgError > 0.20`.
 - Cada `FiadoPayment` guarda `clientName` denormalizado → el historial de pagos sobrevive
   aunque se borre el cliente.
 
+## Rendimiento — lecturas server-side
+
+Las ventas y pagos se filtran por fecha en el SERVIDOR (no se descarga toda la
+colección y se filtra en el cliente, que se ponía lento/se congelaba al crecer):
+- `todaySalesProvider` (dashboard): `where(businessId).where(createdAt >= hoy).orderBy(createdAt desc)`
+- `reportSalesProvider` y `reportFiadoPaymentsProvider`: igual, por periodo.
+
+Esto requiere índices compuestos en Firestore, definidos en `firestore.indexes.json`
+y desplegados con `firebase deploy --only firestore:indexes`:
+- `sales`: businessId ASC + createdAt DESC
+- `fiado_payments`: businessId ASC + createdAt DESC
+
+Si agregas una query con `where(igualdad) + where(rango/otro campo)` o
+`where + orderBy(otro campo)`, añade el índice acá y vuelve a desplegar (si no,
+Firestore rechaza la query). `firebase.json` tiene la sección `firestore`.
+
 ## Integridad de datos
 
 - **Código de barras único:** `product_form` valida antes de guardar que ningún otro

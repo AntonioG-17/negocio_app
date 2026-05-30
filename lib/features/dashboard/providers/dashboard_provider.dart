@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:negocio_app/core/constants/app_constants.dart';
 import 'package:negocio_app/features/auth/models/user_model.dart';
@@ -34,22 +35,22 @@ final todaySalesProvider = StreamProvider<List<Sale>>((ref) {
   final now = DateTime.now();
   final startOfDay = DateTime(now.year, now.month, now.day);
 
+  // Filtro de fecha en el SERVIDOR: solo escucha las ventas de hoy en vez de
+  // descargar toda la colección y filtrar en el dispositivo (clave para que la
+  // app no se ponga lenta ni se congele al crecer el historial).
   return db
       .collection(AppConstants.colSales)
       .where('businessId', isEqualTo: business.id)
+      .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
+      .orderBy('createdAt', descending: true)
       .snapshots()
       .map((snap) {
     var sales = snap.docs.map(Sale.fromFirestore).toList();
 
-    // Filtrar por fecha (hoy)
-    sales = sales.where((s) => s.createdAt.isAfter(startOfDay)).toList();
-
-    // Trabajador: solo sus propias ventas
+    // Trabajador: solo sus propias ventas (set pequeño, filtro local OK).
     if (role == UserRole.worker && userId != null) {
       sales = sales.where((s) => s.userId == userId).toList();
     }
-
-    sales.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     return sales;
   });
 });
