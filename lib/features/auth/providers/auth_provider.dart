@@ -132,6 +132,34 @@ class AuthNotifier extends AsyncNotifier<void> {
     }
   }
 
+  bool _loadingBusiness = false;
+
+  // Recarga el negocio del usuario desde su businessId. Necesario tras un
+  // refresh / auto-recarga, donde selectedBusinessProvider (estado en memoria)
+  // se pierde y no hay un login que dispare _initUserSession. Sin esto, el
+  // trabajador quedaba atascado en "selecciona tu negocio".
+  Future<void> loadBusinessForCurrentUser() async {
+    if (_loadingBusiness) return;
+    if (ref.read(selectedBusinessProvider) != null) return;
+    final profile = ref.read(userProfileProvider).valueOrNull;
+    final bizId = profile?.businessId;
+    if (bizId == null) return;
+    if (profile!.role != UserRole.admin && profile.role != UserRole.worker) {
+      return;
+    }
+    _loadingBusiness = true;
+    try {
+      final snap =
+          await _db.collection(AppConstants.colBusinesses).doc(bizId).get();
+      if (snap.exists) {
+        ref.read(selectedBusinessProvider.notifier).state =
+            Business.fromFirestore(snap);
+      }
+    } finally {
+      _loadingBusiness = false;
+    }
+  }
+
   // CEO: crea un negocio nuevo + cuenta del admin
   Future<void> createBusinessWithAdmin({
     required String businessName,

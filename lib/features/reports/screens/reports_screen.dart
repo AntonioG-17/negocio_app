@@ -259,10 +259,15 @@ class _RevenueChart extends StatelessWidget {
           bottomTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
-              getTitlesWidget: (v, _) => Text(
-                entries[v.toInt()].key,
-                style: const TextStyle(fontSize: 10, color: AppTheme.onSurfaceMuted),
-              ),
+              getTitlesWidget: (v, _) {
+                final i = v.toInt();
+                // fl_chart puede pedir índices fuera de rango → evitar RangeError.
+                if (i < 0 || i >= entries.length) return const SizedBox.shrink();
+                return Text(
+                  entries[i].key,
+                  style: const TextStyle(fontSize: 10, color: AppTheme.onSurfaceMuted),
+                );
+              },
             ),
           ),
           leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),

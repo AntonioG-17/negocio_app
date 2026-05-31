@@ -75,7 +75,21 @@ final routerProvider = Provider<GoRouter>((ref) {
         return null;
       }
 
-      // Sin negocio cargado → pantalla de selección (legacy/fallback)
+      // Tras un refresh/auto-recarga, selectedBusiness (estado en memoria) se
+      // pierde. Admin/Worker tienen un único negocio (su businessId) → recargarlo
+      // automáticamente en vez de mandarlos a "seleccionar negocio" (donde el
+      // trabajador quedaba atascado porque se busca por ownerId).
+      if (profile?.businessId != null &&
+          (role == UserRole.admin || role == UserRole.worker)) {
+        Future.microtask(
+            () => ref.read(authNotifierProvider.notifier).loadBusinessForCurrentUser());
+        if (path == '/' || path == '/login' || path == '/select-business') {
+          return '/dashboard';
+        }
+        return null;
+      }
+
+      // Sin negocio cargado → pantalla de selección (legacy/fallback para dueños)
       if (path != '/select-business') return '/select-business';
       return null;
     },

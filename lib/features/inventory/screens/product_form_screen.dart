@@ -121,7 +121,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
         price: double.parse(_priceCtrl.text),
         cost: _costCtrl.text.isNotEmpty ? double.tryParse(_costCtrl.text) : null,
         stock: int.parse(_stockCtrl.text),
-        minStock: int.parse(_minStockCtrl.text),
+        minStock: int.tryParse(_minStockCtrl.text) ?? AppConstants.defaultMinStock,
         category: _categoryCtrl.text.trim().isEmpty ? null : _categoryCtrl.text.trim(),
         hasBarcode: _hasBarcode,
         createdAt: _existingProduct!.createdAt,
@@ -135,7 +135,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
         price: double.parse(_priceCtrl.text),
         cost: _costCtrl.text.isNotEmpty ? double.tryParse(_costCtrl.text) : null,
         stock: int.parse(_stockCtrl.text),
-        minStock: int.parse(_minStockCtrl.text),
+        minStock: int.tryParse(_minStockCtrl.text) ?? AppConstants.defaultMinStock,
         category: _categoryCtrl.text.trim().isEmpty ? null : _categoryCtrl.text.trim(),
       );
     }
