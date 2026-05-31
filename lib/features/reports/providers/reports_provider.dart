@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart' show DateTimeRange;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:negocio_app/core/constants/app_constants.dart';
 import 'package:negocio_app/features/auth/providers/auth_provider.dart';
@@ -9,6 +10,10 @@ enum ReportPeriod { week, month, year }
 
 final reportPeriodProvider = StateProvider<ReportPeriod>((ref) => ReportPeriod.week);
 
+// Rango de fechas personalizado. Cuando no es null, manda sobre el periodo
+// (permite elegir un día específico o un rango exacto para el Excel).
+final customRangeProvider = StateProvider<DateTimeRange?>((ref) => null);
+
 DateTime _periodStart(ReportPeriod period) {
   final now = DateTime.now();
   return switch (period) {
@@ -18,20 +23,34 @@ DateTime _periodStart(ReportPeriod period) {
   };
 }
 
+// Límites de fecha del reporte: inicio siempre; fin solo para rango personalizado
+// (fin exclusivo = día elegido + 1, para incluir todo el último día).
+final reportBoundsProvider = Provider<({DateTime start, DateTime? end})>((ref) {
+  final custom = ref.watch(customRangeProvider);
+  if (custom != null) {
+    final start = DateTime(custom.start.year, custom.start.month, custom.start.day);
+    final end = DateTime(custom.end.year, custom.end.month, custom.end.day)
+        .add(const Duration(days: 1));
+    return (start: start, end: end);
+  }
+  return (start: _periodStart(ref.watch(reportPeriodProvider)), end: null);
+});
+
 final reportSalesProvider = FutureProvider<List<Sale>>((ref) async {
   final business = ref.watch(selectedBusinessProvider);
   if (business == null) return [];
-  final period = ref.watch(reportPeriodProvider);
   final db = ref.watch(firestoreProvider);
-  final startDate = _periodStart(period);
+  final bounds = ref.watch(reportBoundsProvider);
 
-  // Filtro de fecha en el servidor → solo trae el periodo, no toda la colección.
-  final snap = await db
+  // Filtro de fecha en el servidor → solo trae el rango, no toda la colección.
+  Query<Map<String, dynamic>> q = db
       .collection(AppConstants.colSales)
       .where('businessId', isEqualTo: business.id)
-      .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
-      .orderBy('createdAt', descending: true)
-      .get();
+      .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(bounds.start));
+  if (bounds.end != null) {
+    q = q.where('createdAt', isLessThan: Timestamp.fromDate(bounds.end!));
+  }
+  final snap = await q.orderBy('createdAt', descending: true).get();
 
   return snap.docs.map(Sale.fromFirestore).toList();
 });
@@ -41,16 +60,17 @@ final reportSalesProvider = FutureProvider<List<Sale>>((ref) async {
 final reportFiadoPaymentsProvider = FutureProvider<List<FiadoPayment>>((ref) async {
   final business = ref.watch(selectedBusinessProvider);
   if (business == null) return [];
-  final period = ref.watch(reportPeriodProvider);
   final db = ref.watch(firestoreProvider);
-  final startDate = _periodStart(period);
+  final bounds = ref.watch(reportBoundsProvider);
 
-  final snap = await db
+  Query<Map<String, dynamic>> q = db
       .collection(AppConstants.colPayments)
       .where('businessId', isEqualTo: business.id)
-      .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
-      .orderBy('createdAt', descending: true)
-      .get();
+      .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(bounds.start));
+  if (bounds.end != null) {
+    q = q.where('createdAt', isLessThan: Timestamp.fromDate(bounds.end!));
+  }
+  final snap = await q.orderBy('createdAt', descending: true).get();
 
   return snap.docs.map(FiadoPayment.fromFirestore).toList();
 });

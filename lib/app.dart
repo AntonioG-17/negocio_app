@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:negocio_app/core/constants/app_constants.dart';
@@ -226,6 +227,14 @@ class NegocioApp extends ConsumerWidget {
       theme: AppTheme.dark,
       routerConfig: router,
       debugShowCheckedModeBanner: false,
+      // Español: calendario / selector de fechas y textos de Material en es.
+      locale: const Locale('es'),
+      supportedLocales: const [Locale('es'), Locale('en')],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:excel/excel.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart' show DateTimeRange;
 import 'package:flutter/widgets.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -15,15 +16,20 @@ Future<void> exportReportToExcel({
   required ReportSummary summary,
   List<Client> clients = const [],
   List<FiadoPayment> fiadoPayments = const [],
+  DateTimeRange? customRange,
   Rect? sharePositionOrigin,
 }) async {
   final excel = Excel.createExcel();
 
-  final periodLabel = switch (period) {
-    ReportPeriod.week => 'Ultimos 7 dias',
-    ReportPeriod.month => 'Este mes',
-    ReportPeriod.year => 'Este año',
-  };
+  final periodLabel = customRange != null
+      ? (formatDate(customRange.start) == formatDate(customRange.end)
+          ? formatDate(customRange.start)
+          : 'Del ${formatDate(customRange.start)} al ${formatDate(customRange.end)}')
+      : switch (period) {
+          ReportPeriod.week => 'Ultimos 7 dias',
+          ReportPeriod.month => 'Este mes',
+          ReportPeriod.year => 'Este año',
+        };
 
   // ── Hoja 1: Resumen ──────────────────────────────────────────
   final resSheet = excel['Resumen'];
@@ -123,9 +129,16 @@ Future<void> exportReportToExcel({
   final bytes = excel.encode();
   if (bytes == null) throw Exception('No se pudo generar el archivo');
 
-  final now = DateTime.now();
-  final name =
-      'reporte_${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}.xlsx';
+  String stamp(DateTime d) =>
+      '${d.year}${d.month.toString().padLeft(2, '0')}${d.day.toString().padLeft(2, '0')}';
+  final String name;
+  if (customRange != null) {
+    name = formatDate(customRange.start) == formatDate(customRange.end)
+        ? 'reporte_${stamp(customRange.start)}.xlsx'
+        : 'reporte_${stamp(customRange.start)}_a_${stamp(customRange.end)}.xlsx';
+  } else {
+    name = 'reporte_${stamp(DateTime.now())}.xlsx';
+  }
   const mime =
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 

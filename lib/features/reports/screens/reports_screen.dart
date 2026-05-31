@@ -30,6 +30,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     setState(() => _exporting = true);
     try {
       final period = ref.read(reportPeriodProvider);
+      final customRange = ref.read(customRangeProvider);
       final sales = ref.read(reportSalesProvider).valueOrNull ?? [];
       final summary = ref.read(reportSummaryProvider);
       // Fiados: deudas actuales + pagos del periodo (historial respaldado en el Excel).
@@ -41,6 +42,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         summary: summary,
         clients: clients,
         fiadoPayments: fiadoPayments,
+        customRange: customRange,
         sharePositionOrigin: origin,
       );
     } catch (e) {
@@ -57,18 +59,43 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     }
   }
 
+  Future<void> _pickRange() async {
+    final now = DateTime.now();
+    final current = ref.read(customRangeProvider);
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(now.year - 3),
+      lastDate: now,
+      initialDateRange: current,
+      helpText: 'Elige un día o un rango',
+      saveText: 'Listo',
+    );
+    if (picked != null) {
+      ref.read(customRangeProvider.notifier).state = picked;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final period = ref.watch(reportPeriodProvider);
+    final customRange = ref.watch(customRangeProvider);
     final summary = ref.watch(reportSummaryProvider);
     final salesAsync = ref.watch(reportSalesProvider);
     final hasSales = salesAsync.valueOrNull?.isNotEmpty == true;
+    // Con un rango elegido siempre se puede exportar (aunque ese día no tenga
+    // ventas, el Excel sale con el resumen / fiados del rango).
+    final canExport = hasSales || customRange != null;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Reportes'),
         actions: [
-          if (hasSales)
+          IconButton(
+            icon: const Icon(Icons.event_outlined),
+            tooltip: 'Elegir fecha',
+            onPressed: _pickRange,
+          ),
+          if (canExport)
             _exporting
                 ? const Padding(
                     padding: EdgeInsets.all(14),
@@ -98,14 +125,43 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 ButtonSegment(value: ReportPeriod.year, label: Text('Año')),
               ],
               selected: {period},
-              onSelectionChanged: (s) =>
-                  ref.read(reportPeriodProvider.notifier).state = s.first,
+              onSelectionChanged: (s) {
+                // Volver a un periodo rápido limpia el rango personalizado.
+                ref.read(customRangeProvider.notifier).state = null;
+                ref.read(reportPeriodProvider.notifier).state = s.first;
+              },
               style: SegmentedButton.styleFrom(
                 selectedBackgroundColor: AppTheme.primary,
                 selectedForegroundColor: Colors.black,
               ),
             ),
           ),
+          if (customRange != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: Row(
+                children: [
+                  const Icon(Icons.event_available_outlined,
+                      size: 18, color: AppTheme.primary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      formatDate(customRange.start) == formatDate(customRange.end)
+                          ? formatDate(customRange.start)
+                          : '${formatDate(customRange.start)}  –  ${formatDate(customRange.end)}',
+                      style: const TextStyle(
+                          color: AppTheme.primary, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: () =>
+                        ref.read(customRangeProvider.notifier).state = null,
+                    icon: const Icon(Icons.close, size: 16),
+                    label: const Text('Quitar'),
+                  ),
+                ],
+              ),
+            ),
           Expanded(
             child: salesAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
