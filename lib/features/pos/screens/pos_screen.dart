@@ -70,7 +70,7 @@ class _POSScreenState extends ConsumerState<POSScreen> {
       final action = await showDialog<String>(
         context: context,
         barrierDismissible: false,
-        builder: (_) => AlertDialog(
+        builder: (ctx) => AlertDialog(
           title: const Row(
             children: [
               Icon(Icons.search_off, color: AppTheme.warning),
@@ -81,11 +81,11 @@ class _POSScreenState extends ConsumerState<POSScreen> {
           content: Text('El código "$barcode" no existe en el inventario.'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context, 'close'),
+              onPressed: () => Navigator.pop(ctx, 'close'),
               child: const Text('Cerrar'),
             ),
             ElevatedButton(
-              onPressed: () => Navigator.pop(context, 'manual'),
+              onPressed: () => Navigator.pop(ctx, 'manual'),
               child: const Text('Buscar manual'),
             ),
           ],
@@ -99,7 +99,7 @@ class _POSScreenState extends ConsumerState<POSScreen> {
       await showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (_) => AlertDialog(
+        builder: (ctx) => AlertDialog(
           title: const Row(
             children: [
               Icon(Icons.inventory_2_outlined, color: AppTheme.error),
@@ -110,7 +110,7 @@ class _POSScreenState extends ConsumerState<POSScreen> {
           content: const Text('Este producto no tiene stock disponible.'),
           actions: [
             ElevatedButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(ctx),
               child: const Text('Cerrar'),
             ),
           ],
