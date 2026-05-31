@@ -184,17 +184,19 @@
     container.appendChild(styleTag);
     _overlay.appendChild(container);
 
-    // Red aiming line across the middle (visual guide for 1D codes).
-    var aim = document.createElement('div');
-    Object.assign(aim.style, {
-      position: 'absolute', left: '6%', right: '6%', top: '50%',
-      height: '2px', background: 'rgba(255,80,80,0.9)',
-      boxShadow: '0 0 8px rgba(255,80,80,0.8)', pointerEvents: 'none',
+    // Reticle box (any orientation): Quagga scans the whole frame with
+    // locate:true, so the user just frames the code — horizontal, vertical or
+    // tilted. A rounded box (not a horizontal line) signals "any angle".
+    var reticle = document.createElement('div');
+    Object.assign(reticle.style, {
+      position: 'absolute', left: '10%', right: '10%', top: '24%', bottom: '24%',
+      border: '2px solid rgba(124,252,138,0.85)', borderRadius: '14px',
+      boxShadow: '0 0 0 2000px rgba(0,0,0,0.28)', pointerEvents: 'none',
     });
-    container.appendChild(aim);
+    container.appendChild(reticle);
 
     var hint = document.createElement('p');
-    hint.textContent = 'Código plano, a ~20 cm y con buena luz (no muy cerca)';
+    hint.textContent = 'Encuadra el código en cualquier ángulo, con buena luz';
     Object.assign(hint.style, {
       color: 'rgba(255,255,255,0.6)', fontSize: '13px', margin: '14px 0 0',
     });
