@@ -194,7 +194,7 @@
     container.appendChild(aim);
 
     var hint = document.createElement('p');
-    hint.textContent = 'Acerca el código y muévelo despacio hasta que enfoque';
+    hint.textContent = 'Código plano, a ~20 cm y con buena luz (no muy cerca)';
     Object.assign(hint.style, {
       color: 'rgba(255,255,255,0.6)', fontSize: '13px', margin: '14px 0 0',
     });
@@ -243,21 +243,19 @@
         target: container,
         constraints: {
           facingMode: 'environment',
-          // High resolution so the bars are sharp enough to decode.
           width: { ideal: 1280 },
           height: { ideal: 720 },
           aspectRatio: { ideal: 1.7777778 },
         },
-        // Decode only the central horizontal band (where the user aligns the
-        // code). Combined with halfSample:false this means we process a SMALL
-        // region at FULL resolution → both fast AND sharp enough to read.
-        area: { top: '28%', right: '4%', left: '4%', bottom: '28%' },
+        // No `area`: scan the FULL frame so Quagga's locator can find the code
+        // wherever it is. (A cropped area was likely excluding the barcode.)
       },
-      // halfSample:false → full-resolution decode. halfSample:true was halving
-      // the pixels per bar and was why it processed fast but never read.
-      locator: { patchSize: 'medium', halfSample: false },
+      // Standard mobile config: halfSample:true downsamples so the locator's
+      // patches match the bar pattern → reliably FINDS the barcode (full-res
+      // with cropped area was processing fast but never locating it).
+      locator: { patchSize: 'medium', halfSample: true },
       numOfWorkers: 0, // single-thread → reliable on Safari iOS (no worker blobs)
-      frequency: 10, // up to 10 decode attempts/s — instant feel, gentle on CPU
+      frequency: 10,
       decoder: {
         readers: [
           'ean_reader', 'ean_8_reader',
@@ -278,6 +276,16 @@
       }
       _running = true;
       window.Quagga.start();
+      // Ask the camera for continuous autofocus so close barcodes aren't blurry
+      // (the #1 reason a 1D code never decodes). Best-effort; ignored if unsupported.
+      try {
+        var v = container.querySelector('video');
+        var track = v && v.srcObject && v.srcObject.getVideoTracks
+          ? v.srcObject.getVideoTracks()[0] : null;
+        if (track && track.applyConstraints) {
+          track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(function () {});
+        }
+      } catch (e) {}
       window.Quagga.onDetected(_onDetected);
       // Per-frame feedback: if this counter climbs but no code is ever read,
       // the camera can't focus the bars (move the code / improve light).
