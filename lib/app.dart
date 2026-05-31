@@ -82,12 +82,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
       GoRoute(path: '/select-business', builder: (_, _) => const BusinessSelectScreen()),
       GoRoute(path: '/ceo', builder: (_, _) => const CeoScreen()),
+      // Fuera del shell → pantalla completa con botón de volver, sin barra inferior.
+      GoRoute(path: '/admin-panel', builder: (_, _) => const AdminPanelScreen()),
       ShellRoute(
         navigatorKey: _shellKey,
         builder: (context, state, child) => AppShell(child: child),
         routes: [
           GoRoute(path: '/dashboard', builder: (_, _) => const DashboardScreen()),
-          GoRoute(path: '/admin-panel', builder: (_, _) => const AdminPanelScreen()),
           GoRoute(
             path: '/inventory',
             builder: (_, _) => const InventoryScreen(),

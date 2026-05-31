@@ -27,10 +27,17 @@ class AdminPanelScreen extends ConsumerWidget {
                 itemBuilder: (_, i) => _WorkerTile(worker: list[i]),
               ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showCreateDialog(context, ref),
-        icon: const Icon(Icons.person_add_outlined),
-        label: const Text('Agregar trabajador'),
+      // Solo el FAB cuando ya hay trabajadores. Con la lista vacía, el botón
+      // central del estado vacío es el único (antes salían 2 botones).
+      floatingActionButton: workers.maybeWhen(
+        data: (list) => list.isEmpty
+            ? null
+            : FloatingActionButton.extended(
+                onPressed: () => _showCreateDialog(context, ref),
+                icon: const Icon(Icons.person_add_outlined),
+                label: const Text('Agregar trabajador'),
+              ),
+        orElse: () => null,
       ),
     );
   }

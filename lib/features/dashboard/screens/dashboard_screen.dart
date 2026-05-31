@@ -42,7 +42,7 @@ class DashboardScreen extends ConsumerWidget {
             IconButton(
               icon: const Icon(Icons.group_outlined),
               tooltip: 'Equipo',
-              onPressed: () => context.go('/admin-panel'),
+              onPressed: () => context.push('/admin-panel'),
             ),
           IconButton(
             icon: const Icon(Icons.logout_outlined),

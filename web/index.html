@@ -62,9 +62,15 @@
       let version = String(Date.now());
       try {
         // Always pull flutter_bootstrap.js straight from the network (unique URL
-        // bypasses both the service worker and the HTTP cache).
-        const resp = await fetch('/flutter_bootstrap.js?_=' + Date.now(), { cache: 'no-store' });
+        // bypasses both the service worker and the HTTP cache). Abort after 2.5s
+        // so a slow/flaky network can't hang the app start — we fall back to the
+        // cached app below.
+        const ctrl = new AbortController();
+        const to = setTimeout(function () { ctrl.abort(); }, 2500);
+        const resp = await fetch('/flutter_bootstrap.js?_=' + Date.now(),
+          { cache: 'no-store', signal: ctrl.signal });
         const text = await resp.text();
+        clearTimeout(to);
 
         const match = text.match(/serviceWorkerVersion:\s*"(\d+)"/);
         version = match ? match[1] : version;
@@ -92,9 +98,10 @@
         }
         localStorage.setItem('_app_version', version);
 
-        // Barcode scanner: Quagga2 engine + bridge, versioned so updates to the
-        // scanner are never served stale from the immutable HTTP cache.
-        await loadScript('quagga.min.js?v=' + version);
+        // Barcode scanner: Quagga2 (143KB) loads in the BACKGROUND — it's only
+        // needed when the user opens the scanner, so it must not delay app start.
+        // The tiny bridge is awaited since Dart calls its functions.
+        loadScript('quagga.min.js?v=' + version);
         await loadScript('scanner_bridge.js?v=' + version);
 
         // Patch main.dart.js with the version and run the bootstrap as a blob.
