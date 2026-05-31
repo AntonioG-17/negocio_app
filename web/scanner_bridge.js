@@ -198,7 +198,7 @@
     container.appendChild(aim);
 
     var hint = document.createElement('p');
-    hint.textContent = 'Cualquier ángulo · buena luz · no muy cerca';
+    hint.textContent = 'Barras en horizontal · buena luz';
     Object.assign(hint.style, {
       color: 'rgba(255,255,255,0.6)', fontSize: '13px', margin: '14px 0 0',
     });
@@ -247,11 +247,10 @@
         target: container,
         constraints: {
           facingMode: 'environment',
-          // Higher capture resolution gives FAR (small-in-frame) barcodes enough
-          // pixels to decode; CLOSE/large ones are handled by autofocus below +
-          // halfSample. → reads at both near and far distances.
-          width: { min: 1280, ideal: 1920 },
-          height: { min: 720, ideal: 1080 },
+          // 1600x900: enough pixels for far/small codes, but ~30% fewer pixels
+          // than 1080p so each frame decodes faster on the single thread (speed).
+          width: { min: 1280, ideal: 1600 },
+          height: { min: 720, ideal: 900 },
           aspectRatio: { ideal: 1.7777778 },
         },
         // No `area`: scan the FULL frame so Quagga's locator can find the code
