@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:negocio_app/core/constants/app_constants.dart';
 import 'package:negocio_app/core/theme/app_theme.dart';
 import 'package:negocio_app/features/admin/screens/admin_panel_screen.dart';
 import 'package:negocio_app/features/auth/models/user_model.dart';
@@ -205,7 +206,9 @@ class NegocioApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
     return MaterialApp.router(
-      title: 'NegocioApp',
+      // buildTag en el título (no visible al usuario) — fuerza un build nuevo
+      // cuando solo cambian archivos web/, sin mover la versión visible.
+      title: 'NegocioApp ${AppConstants.buildTag}',
       theme: AppTheme.dark,
       routerConfig: router,
       debugShowCheckedModeBanner: false,

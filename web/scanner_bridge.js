@@ -139,10 +139,11 @@
       _confirmCount = 1;
     }
 
-    // EAN/UPC carry a checksum that Quagga already validated, so a single
-    // reasonably-clean read is safe to accept instantly (supermarket-fast).
-    // Only the noisiest reads wait for a second matching frame.
-    if (err < 0.25 || _confirmCount >= 2) {
+    // EAN/UPC carry a checksum that Quagga already validated, so even a
+    // somewhat-blurry read is structurally valid. Accept a fairly noisy read
+    // instantly (tolerates blur), and fall back to a 2-frame confirm for the
+    // worst reads to avoid the rare wrong-but-valid code.
+    if (err < 0.35 || _confirmCount >= 2) {
       _accept(code);
     }
   }
@@ -184,19 +185,20 @@
     container.appendChild(styleTag);
     _overlay.appendChild(container);
 
-    // Reticle box (any orientation): Quagga scans the whole frame with
-    // locate:true, so the user just frames the code — horizontal, vertical or
-    // tilted. A rounded box (not a horizontal line) signals "any angle".
-    var reticle = document.createElement('div');
-    Object.assign(reticle.style, {
-      position: 'absolute', left: '10%', right: '10%', top: '24%', bottom: '24%',
-      border: '2px solid rgba(124,252,138,0.85)', borderRadius: '14px',
-      boxShadow: '0 0 0 2000px rgba(0,0,0,0.28)', pointerEvents: 'none',
+    // Thin centering line (the previous, fast-scanning look). Quagga still
+    // scans the FULL frame with locate:true, so it reads any angle — the line
+    // is just a reference, not a containment box (a box made users hold the
+    // code too far to "fit it in", which hurt reads).
+    var aim = document.createElement('div');
+    Object.assign(aim.style, {
+      position: 'absolute', left: '6%', right: '6%', top: '50%',
+      height: '2px', background: 'rgba(255,80,80,0.9)',
+      boxShadow: '0 0 8px rgba(255,80,80,0.8)', pointerEvents: 'none',
     });
-    container.appendChild(reticle);
+    container.appendChild(aim);
 
     var hint = document.createElement('p');
-    hint.textContent = 'Encuadra el código en cualquier ángulo, con buena luz';
+    hint.textContent = 'Cualquier ángulo · buena luz · no muy cerca';
     Object.assign(hint.style, {
       color: 'rgba(255,255,255,0.6)', fontSize: '13px', margin: '14px 0 0',
     });
@@ -245,16 +247,19 @@
         target: container,
         constraints: {
           facingMode: 'environment',
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
+          // Higher capture resolution gives FAR (small-in-frame) barcodes enough
+          // pixels to decode; CLOSE/large ones are handled by autofocus below +
+          // halfSample. → reads at both near and far distances.
+          width: { min: 1280, ideal: 1920 },
+          height: { min: 720, ideal: 1080 },
           aspectRatio: { ideal: 1.7777778 },
         },
         // No `area`: scan the FULL frame so Quagga's locator can find the code
         // wherever it is. (A cropped area was likely excluding the barcode.)
       },
-      // Standard mobile config: halfSample:true downsamples so the locator's
-      // patches match the bar pattern → reliably FINDS the barcode (full-res
-      // with cropped area was processing fast but never locating it).
+      // halfSample:true downsamples so the locator's patches match the bar
+      // pattern → reliably FINDS the barcode (also keeps the higher-res frames
+      // affordable on the single decode thread).
       locator: { patchSize: 'medium', halfSample: true },
       numOfWorkers: 0, // single-thread → reliable on Safari iOS (no worker blobs)
       frequency: 10,
