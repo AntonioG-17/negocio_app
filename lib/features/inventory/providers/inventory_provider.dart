@@ -27,7 +27,9 @@ final lowStockProductsProvider = Provider<List<Product>>((ref) {
   return products.where((p) => p.isLowStock).toList();
 });
 
-final productByBarcodeProvider = Provider.family<Product?, String>((ref, barcode) {
+// autoDispose: cada escaneo usa ref.read una vez; sin autoDispose se acumularía
+// una instancia por cada código distinto escaneado (fuga de memoria en sesiones largas).
+final productByBarcodeProvider = Provider.autoDispose.family<Product?, String>((ref, barcode) {
   final products = ref.watch(productsStreamProvider).valueOrNull ?? [];
   return products.where((p) => p.barcode == barcode).firstOrNull;
 });

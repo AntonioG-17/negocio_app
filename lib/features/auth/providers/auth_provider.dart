@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:negocio_app/core/constants/app_constants.dart';
 import 'package:negocio_app/features/auth/models/business_model.dart';
 import 'package:negocio_app/features/auth/models/user_model.dart';
+import 'package:negocio_app/features/pos/providers/pos_provider.dart';
 import 'package:negocio_app/firebase_options.dart';
 
 final firebaseAuthProvider = Provider<FirebaseAuth>((ref) => FirebaseAuth.instance);
@@ -246,6 +247,9 @@ class AuthNotifier extends AsyncNotifier<void> {
 
   Future<void> logout() async {
     ref.read(selectedBusinessProvider.notifier).state = null;
+    // Limpiar el carrito: en un dispositivo compartido, evita que el siguiente
+    // usuario (otro trabajador) herede un carrito sin cobrar del anterior.
+    ref.invalidate(cartProvider);
     await _auth.signOut();
   }
 
