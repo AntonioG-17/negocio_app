@@ -29,13 +29,13 @@
       transition: opacity 0.35s ease; opacity: 1;
     }
     #app-splash .logo {
-      width: 88px; height: 88px; border-radius: 22px;
+      width: 132px; height: 132px; border-radius: 32px;
       background: rgba(0, 200, 150, 0.14);
-      display: flex; align-items: center; justify-content: center; margin-bottom: 22px;
+      display: flex; align-items: center; justify-content: center; margin-bottom: 26px;
     }
-    #app-splash .logo svg { width: 46px; height: 46px; }
-    #app-splash .title { color: #E8E8F0; font-size: 22px; font-weight: 700; letter-spacing: 0.3px; }
-    #app-splash .sub { color: #8B8FA8; font-size: 13px; margin-top: 6px; }
+    #app-splash .logo svg { width: 74px; height: 74px; }
+    #app-splash .title { color: #E8E8F0; font-size: 28px; font-weight: 700; letter-spacing: 0.3px; }
+    #app-splash .sub { color: #8B8FA8; font-size: 14px; margin-top: 8px; }
     #app-splash .spinner {
       margin-top: 30px; width: 30px; height: 30px;
       border: 3px solid rgba(255, 255, 255, 0.12); border-top-color: #00C896;
@@ -58,15 +58,19 @@
         return !!document.querySelector('flutter-view, flt-glass-pane, flt-scene-host, canvas');
       }
 
-      // Quitar la pantalla de inicio en cuanto Flutter pinta.
+      // Quitar la pantalla de inicio cuando Flutter pinta. Se deja ~700ms extra
+      // para que el dashboard alcance a dibujar su primer frame y no se vea el
+      // "tirón" inicial bajo el splash.
       var splashPoll = setInterval(function () {
         if (!flutterBooted()) return;
         clearInterval(splashPoll);
-        var sp = document.getElementById('app-splash');
-        if (sp) {
-          sp.style.opacity = '0';
-          setTimeout(function () { if (sp.parentNode) sp.parentNode.removeChild(sp); }, 400);
-        }
+        setTimeout(function () {
+          var sp = document.getElementById('app-splash');
+          if (sp) {
+            sp.style.opacity = '0';
+            setTimeout(function () { if (sp.parentNode) sp.parentNode.removeChild(sp); }, 400);
+          }
+        }, 700);
       }, 120);
 
       // Watchdog: si Flutter no renderiza en ~12s (caché corrupto/atascado),

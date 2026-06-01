@@ -290,6 +290,31 @@
           ? v.srcObject.getVideoTracks()[0] : null;
         if (track && track.applyConstraints) {
           track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(function () {});
+
+          // Botón de linterna para leer a oscuras — SOLO si la cámara lo soporta.
+          // (Safari en iPhone normalmente no expone 'torch' → ahí no aparece.)
+          var caps = track.getCapabilities ? track.getCapabilities() : null;
+          if (caps && caps.torch) {
+            var torchOn = false;
+            var flashBtn = document.createElement('button');
+            flashBtn.textContent = '🔦 Encender luz';
+            Object.assign(flashBtn.style, {
+              marginTop: '12px', padding: '12px 32px',
+              background: 'rgba(0,200,150,0.18)', color: '#00C896',
+              border: '1px solid rgba(0,200,150,0.5)', borderRadius: '24px',
+              fontSize: '16px', cursor: 'pointer', touchAction: 'manipulation',
+            });
+            flashBtn.addEventListener('click', function (e) {
+              e.stopPropagation();
+              torchOn = !torchOn;
+              track.applyConstraints({ advanced: [{ torch: torchOn }] })
+                .then(function () {
+                  flashBtn.textContent = torchOn ? '🔦 Apagar luz' : '🔦 Encender luz';
+                })
+                .catch(function () { torchOn = !torchOn; });
+            });
+            if (_overlay) _overlay.insertBefore(flashBtn, btn);
+          }
         }
       } catch (e) {}
       window.Quagga.onDetected(_onDetected);
