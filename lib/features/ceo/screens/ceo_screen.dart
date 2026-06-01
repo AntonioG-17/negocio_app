@@ -53,6 +53,7 @@ class CeoScreen extends ConsumerWidget {
 
   void _showCreateDialog(BuildContext context, WidgetRef ref) {
     final ctrl = TextEditingController();
+    var creating = false;
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -70,17 +71,26 @@ class CeoScreen extends ConsumerWidget {
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Cancelar'),
           ),
-          ElevatedButton(
-            onPressed: () async {
-              if (ctrl.text.trim().isEmpty) return;
-              await ref.read(authNotifierProvider.notifier).createBusiness(ctrl.text);
-              if (ctx.mounted) Navigator.pop(ctx);
-            },
-            child: const Text('Crear'),
+          StatefulBuilder(
+            builder: (ctx2, setBtn) => ElevatedButton(
+              // Guard contra doble-tap (crearía negocios duplicados).
+              onPressed: creating
+                  ? null
+                  : () async {
+                      if (ctrl.text.trim().isEmpty) return;
+                      creating = true;
+                      setBtn(() {});
+                      await ref
+                          .read(authNotifierProvider.notifier)
+                          .createBusiness(ctrl.text);
+                      if (ctx.mounted) Navigator.pop(ctx);
+                    },
+              child: const Text('Crear'),
+            ),
           ),
         ],
       ),
-    );
+    ).whenComplete(ctrl.dispose);
   }
 }
 

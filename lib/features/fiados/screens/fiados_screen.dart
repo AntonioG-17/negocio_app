@@ -79,6 +79,7 @@ class FiadosScreen extends ConsumerWidget {
   void _showAddClientDialog(BuildContext context, WidgetRef ref) {
     final nameCtrl = TextEditingController();
     final phoneCtrl = TextEditingController();
+    var creating = false;
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -103,16 +104,23 @@ class FiadosScreen extends ConsumerWidget {
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
-          ElevatedButton(
-            onPressed: () async {
-              if (nameCtrl.text.trim().isEmpty) return;
-              await ref.read(fiadosNotifierProvider.notifier).addClient(
-                    name: nameCtrl.text,
-                    phone: phoneCtrl.text.isEmpty ? null : phoneCtrl.text,
-                  );
-              if (ctx.mounted) Navigator.pop(ctx);
-            },
-            child: const Text('Crear'),
+          StatefulBuilder(
+            builder: (ctx2, setBtn) => ElevatedButton(
+              // Guard contra doble-tap (crearía clientes duplicados).
+              onPressed: creating
+                  ? null
+                  : () async {
+                      if (nameCtrl.text.trim().isEmpty) return;
+                      creating = true;
+                      setBtn(() {});
+                      await ref.read(fiadosNotifierProvider.notifier).addClient(
+                            name: nameCtrl.text,
+                            phone: phoneCtrl.text.isEmpty ? null : phoneCtrl.text,
+                          );
+                      if (ctx.mounted) Navigator.pop(ctx);
+                    },
+              child: const Text('Crear'),
+            ),
           ),
         ],
       ),
