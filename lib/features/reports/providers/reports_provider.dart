@@ -107,8 +107,7 @@ class ReportSummary {
   });
 }
 
-final reportSummaryProvider = Provider<ReportSummary>((ref) {
-  final sales = ref.watch(reportSalesProvider).valueOrNull ?? [];
+ReportSummary buildReportSummary(List<Sale> sales) {
   double cashRevenue = 0;
   double cardRevenue = 0;
   double fiadoRevenue = 0;
@@ -134,4 +133,48 @@ final reportSummaryProvider = Provider<ReportSummary>((ref) {
     totalSales: sales.length,
     revenueByDay: byDay,
   );
+}
+
+final reportSummaryProvider = Provider<ReportSummary>((ref) {
+  return buildReportSummary(ref.watch(reportSalesProvider).valueOrNull ?? []);
+});
+
+// ── Historial por día ────────────────────────────────────────────
+class DailyTotal {
+  final DateTime day;
+  final double total;
+  final int count;
+  const DailyTotal({required this.day, required this.total, required this.count});
+}
+
+// Totales por día de los últimos 90 días (para el historial descargable).
+// Los datos de cada venta ya están guardados en la base, así que el Excel de
+// cualquier día se regenera en el momento (no hace falta almacenar archivos).
+final dailyTotalsProvider = FutureProvider<List<DailyTotal>>((ref) async {
+  final business = ref.watch(selectedBusinessProvider);
+  if (business == null) return [];
+  final db = ref.watch(firestoreProvider);
+  final start = DateTime.now().subtract(const Duration(days: 90));
+
+  final snap = await db
+      .collection(AppConstants.colSales)
+      .where('businessId', isEqualTo: business.id)
+      .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
+      .orderBy('createdAt', descending: true)
+      .get();
+
+  final Map<String, DailyTotal> byDay = {};
+  for (final doc in snap.docs) {
+    final sale = Sale.fromFirestore(doc);
+    final d = DateTime(sale.createdAt.year, sale.createdAt.month, sale.createdAt.day);
+    final key = '${d.year}-${d.month}-${d.day}';
+    final cur = byDay[key];
+    byDay[key] = DailyTotal(
+      day: d,
+      total: (cur?.total ?? 0) + sale.total,
+      count: (cur?.count ?? 0) + 1,
+    );
+  }
+  final list = byDay.values.toList()..sort((a, b) => b.day.compareTo(a.day));
+  return list;
 });

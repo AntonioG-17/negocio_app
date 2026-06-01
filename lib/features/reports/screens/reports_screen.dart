@@ -1,6 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:negocio_app/core/theme/app_theme.dart';
 import 'package:negocio_app/core/utils/formatters.dart';
 import 'package:negocio_app/features/reports/providers/reports_provider.dart';
@@ -90,6 +91,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       appBar: AppBar(
         title: const Text('Reportes'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.history),
+            tooltip: 'Reportes por día',
+            onPressed: () => context.push('/reports/daily'),
+          ),
           IconButton(
             icon: const Icon(Icons.event_outlined),
             tooltip: 'Elegir fecha',

@@ -17,6 +17,7 @@ import 'package:negocio_app/features/inventory/screens/inventory_screen.dart';
 import 'package:negocio_app/features/inventory/screens/product_form_screen.dart';
 import 'package:negocio_app/features/pos/screens/checkout_screen.dart';
 import 'package:negocio_app/features/pos/screens/pos_screen.dart';
+import 'package:negocio_app/features/reports/screens/daily_reports_screen.dart';
 import 'package:negocio_app/features/reports/screens/reports_screen.dart';
 
 final _rootKey = GlobalKey<NavigatorState>();
@@ -100,6 +101,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/ceo', builder: (_, _) => const CeoScreen()),
       // Fuera del shell → pantalla completa con botón de volver, sin barra inferior.
       GoRoute(path: '/admin-panel', builder: (_, _) => const AdminPanelScreen()),
+      GoRoute(path: '/reports/daily', builder: (_, _) => const DailyReportsScreen()),
       ShellRoute(
         navigatorKey: _shellKey,
         builder: (context, state, child) => AppShell(child: child),
