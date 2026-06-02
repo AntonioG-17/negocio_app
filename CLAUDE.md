@@ -180,6 +180,23 @@ Firestore rechaza la query). `firebase.json` tiene la sección `firestore`.
 - "Nuevo negocio" solo pide el nombre (sin creación de admin obligatoria)
 - Tarjeta de negocio es tappeable → entra al **CEO Preview** del negocio
 
+## Autenticación — plan por etapas (en progreso)
+
+Objetivo: 1 credencial por persona (correo real), recuperación de contraseña,
+y que una persona pueda pertenecer a varios negocios con distinto rol.
+
+- **Etapa 1 (HECHA):** recuperación de contraseña por **correo**. Botón
+  "¿Olvidaste tu contraseña?" en el login → `AuthNotifier.sendPasswordReset`
+  (`FirebaseAuth.sendPasswordResetEmail`). Funciona para cualquier cuenta. El CEO
+  mantiene sus credenciales reales actuales (no se tocó). Casos que no puedan
+  recuperar → reset manual desde la consola de Firebase.
+- **Etapa 2 (PENDIENTE):** modelo de **membresías** (persona ↔ negocio ↔ rol) para
+  multi-negocio: admin en uno y trabajador en otro, o trabajador en varios.
+  Onboarding por **invitación por correo** (la persona pone su clave). El menú
+  "Selecciona tu negocio" pasa a ser el switcher entre negocios.
+- **Etapa 3 (PENDIENTE):** **cerrar reglas de Firestore** (hoy abiertas) según
+  membresías; el CEO ve todo.
+
 ## CEO Preview (modo solo lectura) — implementado
 
 El CEO toca un negocio en su panel y entra a verlo en **modo solo lectura**, para

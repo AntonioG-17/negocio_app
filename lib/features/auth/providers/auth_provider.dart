@@ -96,6 +96,13 @@ class AuthNotifier extends AsyncNotifier<void> {
     });
   }
 
+  // Envía un correo de recuperación de contraseña (link de Firebase). Funciona
+  // para cualquier cuenta existente. Por seguridad, Firebase no revela si el
+  // correo existe o no.
+  Future<void> sendPasswordReset(String email) async {
+    await _auth.sendPasswordResetEmail(email: email.trim());
+  }
+
   // Inicializa la sesión: crea perfil CEO si aplica, o auto-carga el negocio
   Future<void> _initUserSession() async {
     final user = _auth.currentUser;

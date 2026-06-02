@@ -54,6 +54,69 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return 'Error al iniciar sesión';
   }
 
+  // Recuperación de contraseña por correo.
+  Future<void> _forgotPassword() async {
+    final ctrl = TextEditingController(text: _emailCtrl.text.trim());
+    final sent = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.surface,
+        title: const Text('Recuperar contraseña'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Te enviaremos un enlace a tu correo para crear una nueva contraseña.',
+              style: TextStyle(color: AppTheme.onSurfaceMuted, fontSize: 13),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: ctrl,
+              autofocus: true,
+              keyboardType: TextInputType.emailAddress,
+              autocorrect: false,
+              decoration: const InputDecoration(
+                labelText: 'Correo electrónico',
+                prefixIcon: Icon(Icons.email_outlined),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final email = ctrl.text.trim();
+              if (!email.contains('@')) return;
+              try {
+                await ref
+                    .read(authNotifierProvider.notifier)
+                    .sendPasswordReset(email);
+              } catch (_) {
+                // Por seguridad no distinguimos si el correo existe.
+              }
+              if (ctx.mounted) Navigator.pop(ctx, true);
+            },
+            child: const Text('Enviar'),
+          ),
+        ],
+      ),
+    ).whenComplete(ctrl.dispose);
+
+    if (sent == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Si el correo está registrado, te llegará el enlace.'),
+          backgroundColor: AppTheme.success,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authNotifierProvider);
@@ -119,7 +182,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         : const Text('Iniciar sesión'),
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 8),
+                Center(
+                  child: TextButton(
+                    onPressed: authState.isLoading ? null : _forgotPassword,
+                    child: const Text('¿Olvidaste tu contraseña?'),
+                  ),
+                ),
+                const SizedBox(height: 16),
                 Center(
                   child: Text(
                     AppConstants.appVersion,
