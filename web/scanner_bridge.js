@@ -143,7 +143,7 @@
     // blurry read is structurally valid. Accept a noisy read instantly (more
     // blur tolerance), and fall back to a 2-frame confirm for the worst reads
     // to avoid the rare wrong-but-valid code.
-    if (err < 0.45 || _confirmCount >= 2) {
+    if (err < 0.55 || _confirmCount >= 2) {
       _accept(code);
     }
   }
@@ -265,10 +265,11 @@
         target: container,
         constraints: {
           facingMode: 'environment',
-          // 1600x900: enough pixels for far/small codes, but ~30% fewer pixels
-          // than 1080p so each frame decodes faster on the single thread (speed).
-          width: { min: 1280, ideal: 1600 },
-          height: { min: 720, ideal: 900 },
+          // Pedimos la mayor resolución disponible para que los códigos lejanos
+          // /pequeños tengan suficientes píxeles para decodificar (la cámara da
+          // lo que pueda; mínimo 1280).
+          width: { min: 1280, ideal: 1920 },
+          height: { min: 720, ideal: 1080 },
           aspectRatio: { ideal: 1.7777778 },
         },
         // No `area`: scan the FULL frame so Quagga's locator can find the code
