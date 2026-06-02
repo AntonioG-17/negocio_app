@@ -98,8 +98,9 @@ class AuthNotifier extends AsyncNotifier<void> {
 
   // Envía un correo de recuperación de contraseña (link de Firebase). Funciona
   // para cualquier cuenta existente. Por seguridad, Firebase no revela si el
-  // correo existe o no.
+  // correo existe o no. setLanguageCode('es') → el correo llega en español.
   Future<void> sendPasswordReset(String email) async {
+    await _auth.setLanguageCode('es');
     await _auth.sendPasswordResetEmail(email: email.trim());
   }
 
