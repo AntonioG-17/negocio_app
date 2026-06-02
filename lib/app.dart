@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:negocio_app/core/constants/app_constants.dart';
 import 'package:negocio_app/core/theme/app_theme.dart';
+import 'package:negocio_app/features/dashboard/providers/dashboard_provider.dart';
 import 'package:negocio_app/features/admin/screens/admin_panel_screen.dart';
 import 'package:negocio_app/features/auth/models/user_model.dart';
 import 'package:negocio_app/features/auth/providers/auth_provider.dart';
@@ -207,8 +210,9 @@ class _AppShellState extends ConsumerState<AppShell> {
     final location = GoRouterState.of(context).matchedLocation;
     final idx = routes.indexWhere((r) => location.startsWith(r));
     if (idx != -1 && idx != _currentIndex) {
-      WidgetsBinding.instance
-          .addPostFrameCallback((_) => setState(() => _currentIndex = idx));
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _currentIndex = idx);
+      });
     }
 
     return Scaffold(
@@ -228,11 +232,58 @@ class _AppShellState extends ConsumerState<AppShell> {
   }
 }
 
-class NegocioApp extends ConsumerWidget {
+class NegocioApp extends ConsumerStatefulWidget {
   const NegocioApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<NegocioApp> createState() => _NegocioAppState();
+}
+
+class _NegocioAppState extends ConsumerState<NegocioApp>
+    with WidgetsBindingObserver {
+  Timer? _dayTimer;
+  late DateTime _day;
+
+  DateTime _today() {
+    final n = DateTime.now();
+    return DateTime(n.year, n.month, n.day);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _day = _today();
+    WidgetsBinding.instance.addObserver(this);
+    // Revisa el cambio de día cada minuto (cubre el POS que queda abierto
+    // cruzando la medianoche).
+    _dayTimer = Timer.periodic(const Duration(minutes: 1), (_) => _checkDayChange());
+  }
+
+  @override
+  void dispose() {
+    _dayTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Al volver a la app (p. ej. al otro día), revisa si cambió el día.
+    if (state == AppLifecycleState.resumed) _checkDayChange();
+  }
+
+  void _checkDayChange() {
+    final today = _today();
+    if (today != _day) {
+      _day = today;
+      // Nuevo día → "Ventas hoy" arranca limpio (el provider captura el inicio
+      // del día al construirse, así que se reinicia su consulta).
+      ref.invalidate(todaySalesProvider);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
     return MaterialApp.router(
       // buildTag en el título (no visible al usuario) — fuerza un build nuevo

@@ -112,7 +112,10 @@ class _DailyReportsScreenState extends ConsumerState<DailyReportsScreen> {
                 ),
               )
             : ListView.separated(
-                padding: const EdgeInsets.all(16),
+                // Margen inferior extra = safe area (evita que el último ítem
+                // quede cortado por la barra de inicio del iPhone/Android).
+                padding: EdgeInsets.fromLTRB(
+                    16, 16, 16, 16 + MediaQuery.viewPaddingOf(context).bottom),
                 itemCount: days.length,
                 separatorBuilder: (_, _) => const SizedBox(height: 8),
                 itemBuilder: (_, i) {

@@ -122,11 +122,13 @@
 
         const storedVersion = localStorage.getItem('_app_version');
 
-        // App was updated → nuke every cache + the service worker, then reload
-        // ONCE so this session already runs the fresh index.html and assets.
-        // Fully automatic: no manual refresh, no remove/re-add.
+        // App actualizada → limpiar caches + service worker y CONTINUAR cargando
+        // la versión nueva en ESTA misma sesión (sin recargar). Antes se hacía
+        // location.reload(), lo que mostraba el splash dos veces (doble-arranque).
+        // El bootstrap y los scripts se piden con ?v=version fresco, así que la
+        // app queda actualizada igual; el shell (index.html) se refresca solo en
+        // la próxima apertura gracias a la limpieza de caches/SW.
         if (storedVersion && storedVersion !== version) {
-          localStorage.setItem('_app_version', version);
           if ('caches' in window) {
             const keys = await caches.keys();
             await Promise.all(keys.map(k => caches.delete(k)));
@@ -134,11 +136,6 @@
           if ('serviceWorker' in navigator) {
             const regs = await navigator.serviceWorker.getRegistrations();
             await Promise.all(regs.map(r => r.unregister()));
-          }
-          if (sessionStorage.getItem('_reloaded_for') !== version) {
-            sessionStorage.setItem('_reloaded_for', version);
-            location.reload();
-            return; // stop here — the reload picks up everything fresh
           }
         }
         localStorage.setItem('_app_version', version);
