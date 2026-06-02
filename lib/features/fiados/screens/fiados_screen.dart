@@ -84,49 +84,83 @@ class FiadosScreen extends ConsumerWidget {
     final nameCtrl = TextEditingController();
     final phoneCtrl = TextEditingController();
     var creating = false;
-    showDialog(
+    // Hoja inferior (sube con el teclado) en vez de AlertDialog.
+    showModalBottomSheet(
       context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppTheme.surface,
-        title: const Text('Nuevo cliente'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameCtrl,
-              autofocus: true,
-              decoration: const InputDecoration(labelText: 'Nombre *'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: phoneCtrl,
-              keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(labelText: 'Telefono (opcional)'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
-          StatefulBuilder(
-            builder: (ctx2, setBtn) => ElevatedButton(
-              // Guard contra doble-tap (crearía clientes duplicados).
-              onPressed: creating
-                  ? null
-                  : () async {
-                      if (nameCtrl.text.trim().isEmpty) return;
-                      creating = true;
-                      setBtn(() {});
-                      await ref.read(fiadosNotifierProvider.notifier).addClient(
-                            name: nameCtrl.text,
-                            phone: phoneCtrl.text.isEmpty ? null : phoneCtrl.text,
-                          );
-                      if (ctx.mounted) Navigator.pop(ctx);
-                    },
-              child: const Text('Crear'),
-            ),
+      isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
+      backgroundColor: AppTheme.surface,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx2, setSheet) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+            left: 20,
+            right: 20,
+            top: 16,
           ),
-        ],
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Nuevo cliente',
+                  style: Theme.of(ctx).textTheme.titleLarge),
+              const SizedBox(height: 16),
+              TextField(
+                controller: nameCtrl,
+                autofocus: true,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: 'Nombre *',
+                  prefixIcon: Icon(Icons.person_outline),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: phoneCtrl,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  labelText: 'Teléfono (opcional)',
+                  prefixIcon: Icon(Icons.phone_outlined),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('Cancelar'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      // Guard contra doble-tap (crearía clientes duplicados).
+                      onPressed: creating
+                          ? null
+                          : () async {
+                              if (nameCtrl.text.trim().isEmpty) return;
+                              creating = true;
+                              setSheet(() {});
+                              await ref
+                                  .read(fiadosNotifierProvider.notifier)
+                                  .addClient(
+                                    name: nameCtrl.text,
+                                    phone: phoneCtrl.text.isEmpty
+                                        ? null
+                                        : phoneCtrl.text,
+                                  );
+                              if (ctx.mounted) Navigator.pop(ctx);
+                            },
+                      child: const Text('Crear'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     ).whenComplete(() {
       nameCtrl.dispose();

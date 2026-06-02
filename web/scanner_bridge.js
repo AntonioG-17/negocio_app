@@ -140,10 +140,10 @@
     }
 
     // EAN/UPC carry a checksum that Quagga already validated, so even a
-    // somewhat-blurry read is structurally valid. Accept a fairly noisy read
-    // instantly (tolerates blur), and fall back to a 2-frame confirm for the
-    // worst reads to avoid the rare wrong-but-valid code.
-    if (err < 0.35 || _confirmCount >= 2) {
+    // blurry read is structurally valid. Accept a noisy read instantly (more
+    // blur tolerance), and fall back to a 2-frame confirm for the worst reads
+    // to avoid the rare wrong-but-valid code.
+    if (err < 0.45 || _confirmCount >= 2) {
       _accept(code);
     }
   }

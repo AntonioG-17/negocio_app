@@ -302,35 +302,65 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   Future<void> _createNewClient() async {
     final nameCtrl = TextEditingController();
     final phoneCtrl = TextEditingController();
-    final result = await showDialog<bool>(
+    // Hoja inferior (sube con el teclado) en vez de AlertDialog.
+    final result = await showModalBottomSheet<bool>(
       context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppTheme.surface,
-        title: const Text('Nuevo cliente'),
-        content: Column(
+      isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
+      backgroundColor: AppTheme.surface,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+          left: 20,
+          right: 20,
+          top: 16,
+        ),
+        child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Text('Nuevo cliente',
+                style: Theme.of(ctx).textTheme.titleLarge),
+            const SizedBox(height: 16),
             TextField(
               controller: nameCtrl,
               autofocus: true,
-              decoration: const InputDecoration(labelText: 'Nombre *'),
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(
+                labelText: 'Nombre *',
+                prefixIcon: Icon(Icons.person_outline),
+              ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: phoneCtrl,
               keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(labelText: 'Telefono (opcional)'),
+              decoration: const InputDecoration(
+                labelText: 'Teléfono (opcional)',
+                prefixIcon: Icon(Icons.phone_outlined),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('Cancelar'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: const Text('Crear'),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Crear'),
-          ),
-        ],
       ),
     );
     if (result == true && nameCtrl.text.trim().isNotEmpty) {
