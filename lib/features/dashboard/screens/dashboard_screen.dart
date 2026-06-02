@@ -5,6 +5,7 @@ import 'package:negocio_app/core/theme/app_theme.dart';
 import 'package:negocio_app/core/utils/formatters.dart';
 import 'package:negocio_app/features/auth/models/user_model.dart';
 import 'package:negocio_app/features/auth/providers/auth_provider.dart';
+import 'package:negocio_app/features/auth/widgets/change_password_dialog.dart';
 import 'package:negocio_app/features/dashboard/providers/dashboard_provider.dart';
 import 'package:negocio_app/features/fiados/providers/fiados_provider.dart';
 import 'package:negocio_app/features/inventory/providers/inventory_provider.dart';
@@ -56,11 +57,20 @@ class DashboardScreen extends ConsumerWidget {
               tooltip: 'Equipo',
               onPressed: () => context.push('/admin-panel'),
             ),
-          // El CEO sale con la flecha; no mostramos logout en preview.
+          // El CEO sale con la flecha; en preview no mostramos el menú de cuenta.
           if (!isCeoPreview)
-            IconButton(
-              icon: const Icon(Icons.logout_outlined),
-              onPressed: () => ref.read(authNotifierProvider.notifier).logout(),
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert),
+              onSelected: (v) {
+                if (v == 'password') showChangePasswordDialog(context, ref);
+                if (v == 'logout') {
+                  ref.read(authNotifierProvider.notifier).logout();
+                }
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(value: 'password', child: Text('Cambiar contraseña')),
+                PopupMenuItem(value: 'logout', child: Text('Cerrar sesión')),
+              ],
             ),
         ],
       ),

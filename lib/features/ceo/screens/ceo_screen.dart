@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:negocio_app/core/theme/app_theme.dart';
 import 'package:negocio_app/features/auth/models/business_model.dart';
 import 'package:negocio_app/features/auth/providers/auth_provider.dart';
+import 'package:negocio_app/features/auth/widgets/change_password_dialog.dart';
 
 class CeoScreen extends ConsumerWidget {
   const CeoScreen({super.key});
@@ -23,10 +24,18 @@ class CeoScreen extends ConsumerWidget {
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.logout_outlined),
-            onPressed: () =>
-                ref.read(authNotifierProvider.notifier).logout(),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (v) {
+              if (v == 'password') showChangePasswordDialog(context, ref);
+              if (v == 'logout') {
+                ref.read(authNotifierProvider.notifier).logout();
+              }
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'password', child: Text('Cambiar contraseña')),
+              PopupMenuItem(value: 'logout', child: Text('Cerrar sesión')),
+            ],
           ),
         ],
       ),

@@ -104,6 +104,21 @@ class AuthNotifier extends AsyncNotifier<void> {
     await _auth.sendPasswordResetEmail(email: email.trim());
   }
 
+  // Cambia la contraseña estando logueado: re-autentica con la actual y la
+  // actualiza. Lanza error si la actual es incorrecta.
+  Future<void> changePassword(String current, String newPassword) async {
+    final user = _auth.currentUser;
+    if (user == null || user.email == null) {
+      throw Exception('No hay sesión activa');
+    }
+    final cred = EmailAuthProvider.credential(
+      email: user.email!,
+      password: current,
+    );
+    await user.reauthenticateWithCredential(cred);
+    await user.updatePassword(newPassword);
+  }
+
   // Inicializa la sesión: crea perfil CEO si aplica, o auto-carga el negocio
   Future<void> _initUserSession() async {
     final user = _auth.currentUser;

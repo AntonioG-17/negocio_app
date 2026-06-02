@@ -148,6 +148,28 @@
     }
   }
 
+  // Carga Quagga on-demand si no se cargó al inicio (robustez ante transiciones
+  // de versión donde la descarga del script pudo cortarse).
+  function ensureQuagga(cb) {
+    if (window.Quagga) { cb(); return; }
+    if (_debugEl) _debugEl.textContent = 'Cargando lector…';
+    var s = document.createElement('script');
+    s.src = 'quagga.min.js';
+    s.onload = function () {
+      if (window.Quagga) {
+        cb();
+      } else if (_debugEl) {
+        _debugEl.textContent = 'No se pudo iniciar el lector.';
+      }
+    };
+    s.onerror = function () {
+      if (_debugEl) {
+        _debugEl.textContent = 'No se pudo cargar el lector (revisa tu conexión).';
+      }
+    };
+    document.head.appendChild(s);
+  }
+
   function launchScanner() {
     removeTriggerBtn();
     if (_overlay) removeOverlay();
@@ -232,15 +254,11 @@
     document.body.appendChild(_overlay);
 
     // ── Start Quagga2 ─────────────────────────────────────────────────────
-    if (!window.Quagga) {
-      container.innerHTML =
-        '<p style="color:#ff5252;padding:16px;text-align:center">' +
-        'Motor de escaneo no disponible.</p>';
-      return;
-    }
-
-    _detected = false;
-    window.Quagga.init({
+    // Fallback: si Quagga no se cargó al inicio (p. ej. una transición de
+    // versión cortó la descarga), lo cargamos on-demand antes de iniciar.
+    ensureQuagga(function () {
+      _detected = false;
+      window.Quagga.init({
       inputStream: {
         name: 'Live',
         type: 'LiveStream',
@@ -327,6 +345,7 @@
           _debugEl.textContent = 'Buscando código… (' + _frames + ' frames)';
         }
       });
+    });
     });
   }
 
