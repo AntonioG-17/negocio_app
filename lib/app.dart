@@ -24,14 +24,26 @@ final _rootKey = GlobalKey<NavigatorState>();
 final _shellKey = GlobalKey<NavigatorState>();
 
 final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authStateProvider);
-  final selectedBusiness = ref.watch(selectedBusinessProvider);
-  final userProfile = ref.watch(userProfileProvider);
+  // Refrescar el redirect cuando cambian auth/perfil/negocio SIN recrear el
+  // GoRouter. Antes se usaba ref.watch en el cuerpo, así que el router se
+  // recreaba en cada cambio (auth → perfil → negocio) durante la carga y
+  // reseteaba el navegador → dashboard en blanco. Ahora se crea UNA vez y se
+  // re-evalúa el redirect vía refreshListenable.
+  final refresh = ValueNotifier<int>(0);
+  ref.listen(authStateProvider, (_, _) => refresh.value++);
+  ref.listen(userProfileProvider, (_, _) => refresh.value++);
+  ref.listen(selectedBusinessProvider, (_, _) => refresh.value++);
+  ref.onDispose(refresh.dispose);
 
   return GoRouter(
     navigatorKey: _rootKey,
     initialLocation: '/login',
+    refreshListenable: refresh,
     redirect: (context, state) {
+      final authState = ref.read(authStateProvider);
+      final userProfile = ref.read(userProfileProvider);
+      final selectedBusiness = ref.read(selectedBusinessProvider);
+
       if (authState.isLoading) return null;
       final isLoggedIn = authState.valueOrNull != null;
       final path = state.matchedLocation;
