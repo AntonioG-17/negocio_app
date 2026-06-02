@@ -178,8 +178,27 @@ Firestore rechaza la query). `firebase.json` tiene la sección `firestore`.
 ## CEO Panel — flujo actual
 
 - "Nuevo negocio" solo pide el nombre (sin creación de admin obligatoria)
-- Admin/trabajadores se agregan separado (parte del CEO preview mode pendiente)
-- Tarjeta de negocio tiene flecha `>` (hint de que se podrá entrar en preview mode)
+- Tarjeta de negocio es tappeable → entra al **CEO Preview** del negocio
+
+## CEO Preview (modo solo lectura) — implementado
+
+El CEO toca un negocio en su panel y entra a verlo en **modo solo lectura**, para
+monitorear lo que hacen admins/trabajadores.
+
+- **Detección:** `isCeoPreviewProvider` = rol CEO + `selectedBusinessProvider != null`.
+  Al tocar un negocio se setea `selectedBusinessProvider` y se navega a `/dashboard`.
+- **Qué ve:** Dashboard, Inventario, Fiados y Reportes del negocio (barra de menú
+  CEO sin "Vender"). Puede descargar Excel y ver el historial por día.
+- **Solo lectura:** se ocultan TODAS las acciones de escritura — sin POS (vender),
+  sin FAB de agregar producto/cliente, sin editar productos, sin registrar pago,
+  sin eliminar cliente, sin panel de equipo.
+- **Salir:** flecha "atrás" en el AppBar del dashboard (título "Vista CEO") →
+  limpia `selectedBusinessProvider` y vuelve a `/ceo`.
+- **Router:** cuando el CEO está en preview, se permiten `/dashboard /inventory
+  /fiados /reports` (+ `/ceo`); se bloquean `/pos /inventory/add /inventory/edit
+  /admin-panel`. Sin negocio seleccionado, el CEO solo accede a `/ceo`.
+- Funciona porque las reglas de Firestore están abiertas (el CEO lee datos de
+  cualquier negocio); los providers ya consultan por `selectedBusiness.id`.
 
 ## Checkout — pago en efectivo y vuelto
 

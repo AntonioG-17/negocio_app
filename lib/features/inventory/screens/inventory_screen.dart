@@ -30,7 +30,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     final products = ref.watch(productsStreamProvider);
     final search = ref.watch(_searchProvider);
     final role = ref.watch(currentUserRoleProvider);
-    final isWorker = role == UserRole.worker;
+    // Solo lectura para trabajadores y para el CEO en preview.
+    final readOnly = role == UserRole.worker || ref.watch(isCeoPreviewProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -86,11 +87,11 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
             padding: const EdgeInsets.all(16),
             itemCount: filtered.length,
             separatorBuilder: (ctx, i) => const SizedBox(height: 8),
-            itemBuilder: (ctx, i) => _ProductTile(product: filtered[i], readOnly: isWorker),
+            itemBuilder: (ctx, i) => _ProductTile(product: filtered[i], readOnly: readOnly),
           );
         },
       ),
-      floatingActionButton: isWorker
+      floatingActionButton: readOnly
           ? null
           : FloatingActionButton.extended(
               onPressed: () => context.go('/inventory/add'),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:negocio_app/core/theme/app_theme.dart';
 import 'package:negocio_app/features/auth/models/business_model.dart';
 import 'package:negocio_app/features/auth/providers/auth_provider.dart';
@@ -36,11 +37,35 @@ class CeoScreen extends ConsumerWidget {
             ? _EmptyState(
                 onAdd: () => _showCreateDialog(context, ref),
               )
-            : ListView.separated(
-                padding: const EdgeInsets.all(20),
-                itemCount: list.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 12),
-                itemBuilder: (_, i) => _BusinessCard(business: list[i]),
+            : Column(
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(20, 16, 20, 4),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Toca un negocio para ver su actividad (solo lectura)',
+                        style: TextStyle(color: AppTheme.onSurfaceMuted, fontSize: 13),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: ListView.separated(
+                      padding: const EdgeInsets.all(20),
+                      itemCount: list.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 12),
+                      itemBuilder: (_, i) => _BusinessCard(
+                        business: list[i],
+                        onTap: () {
+                          // Entrar al preview: seleccionar el negocio y abrir el
+                          // dashboard en modo solo lectura.
+                          ref.read(selectedBusinessProvider.notifier).state = list[i];
+                          context.go('/dashboard');
+                        },
+                      ),
+                    ),
+                  ),
+                ],
               ),
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -96,42 +121,47 @@ class CeoScreen extends ConsumerWidget {
 
 class _BusinessCard extends StatelessWidget {
   final Business business;
-  const _BusinessCard({required this.business});
+  final VoidCallback onTap;
+  const _BusinessCard({required this.business, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: AppTheme.primary.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: AppTheme.primary.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.store, color: AppTheme.primary),
               ),
-              child: const Icon(Icons.store, color: AppTheme.primary),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(business.name,
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(business.name,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text(
+                      'Creado: ${_fmt(business.createdAt)}',
                       style: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 16)),
-                  Text(
-                    'Creado: ${_fmt(business.createdAt)}',
-                    style: const TextStyle(
-                        color: AppTheme.onSurfaceMuted, fontSize: 12),
-                  ),
-                ],
+                          color: AppTheme.onSurfaceMuted, fontSize: 12),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const Icon(Icons.arrow_forward_ios, color: AppTheme.onSurfaceMuted, size: 16),
-          ],
+              const Icon(Icons.arrow_forward_ios, color: AppTheme.onSurfaceMuted, size: 16),
+            ],
+          ),
         ),
       ),
     );

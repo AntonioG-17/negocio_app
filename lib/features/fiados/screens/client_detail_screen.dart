@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:negocio_app/core/theme/app_theme.dart';
 import 'package:negocio_app/core/utils/formatters.dart';
+import 'package:negocio_app/features/auth/providers/auth_provider.dart';
 import 'package:negocio_app/features/fiados/models/client_model.dart';
 import 'package:negocio_app/features/fiados/providers/fiados_provider.dart';
 
@@ -16,6 +17,7 @@ class ClientDetailScreen extends ConsumerWidget {
     final clients = ref.watch(clientsStreamProvider).valueOrNull ?? [];
     final client = clients.where((c) => c.id == clientId).firstOrNull;
     final payments = ref.watch(clientPaymentsProvider(clientId));
+    final isCeoPreview = ref.watch(isCeoPreviewProvider);
 
     if (client == null) {
       return Scaffold(
@@ -28,10 +30,12 @@ class ClientDetailScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text(client.name),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.delete_outline, color: AppTheme.error),
-            onPressed: () => _delete(context, ref, client),
-          ),
+          // Sin eliminar en modo preview (solo lectura).
+          if (!isCeoPreview)
+            IconButton(
+              icon: const Icon(Icons.delete_outline, color: AppTheme.error),
+              onPressed: () => _delete(context, ref, client),
+            ),
         ],
       ),
       body: SingleChildScrollView(
@@ -120,7 +124,7 @@ class ClientDetailScreen extends ConsumerWidget {
           ],
         ),
       ),
-      bottomNavigationBar: client.totalDebt > 0
+      bottomNavigationBar: (client.totalDebt > 0 && !isCeoPreview)
           ? Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
               child: ElevatedButton.icon(

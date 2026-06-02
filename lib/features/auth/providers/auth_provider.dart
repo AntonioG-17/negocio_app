@@ -33,6 +33,14 @@ final currentUserRoleProvider = Provider<UserRole?>((ref) {
   return ref.watch(userProfileProvider).valueOrNull?.role;
 });
 
+// CEO viendo un negocio en modo SOLO LECTURA (preview). True cuando el rol es
+// CEO y hay un negocio seleccionado (el CEO entró a un negocio desde su panel).
+// En este modo se ocultan acciones de escritura (vender, agregar, editar).
+final isCeoPreviewProvider = Provider<bool>((ref) {
+  return ref.watch(currentUserRoleProvider) == UserRole.ceo &&
+      ref.watch(selectedBusinessProvider) != null;
+});
+
 // Todos los negocios (solo CEO)
 final allBusinessesProvider = StreamProvider<List<Business>>((ref) {
   final role = ref.watch(currentUserRoleProvider);

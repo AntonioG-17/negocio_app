@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:negocio_app/core/theme/app_theme.dart';
 import 'package:negocio_app/core/utils/formatters.dart';
+import 'package:negocio_app/features/auth/providers/auth_provider.dart';
 import 'package:negocio_app/features/fiados/models/client_model.dart';
 import 'package:negocio_app/features/fiados/providers/fiados_provider.dart';
 
@@ -13,6 +14,7 @@ class FiadosScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final clients = ref.watch(clientsStreamProvider);
     final totalDebt = ref.watch(totalDebtProvider);
+    final isCeoPreview = ref.watch(isCeoPreviewProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Fiados')),
@@ -68,11 +70,13 @@ class FiadosScreen extends ConsumerWidget {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddClientDialog(context, ref),
-        icon: const Icon(Icons.person_add_outlined),
-        label: const Text('Nuevo cliente'),
-      ),
+      floatingActionButton: isCeoPreview
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () => _showAddClientDialog(context, ref),
+              icon: const Icon(Icons.person_add_outlined),
+              label: const Text('Nuevo cliente'),
+            ),
     );
   }
 

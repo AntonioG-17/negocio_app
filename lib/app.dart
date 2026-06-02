@@ -60,10 +60,20 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       final role = userProfile.valueOrNull?.role;
 
-      // CEO: siempre al panel CEO
+      // CEO: panel CEO, o preview de un negocio (solo lectura) si entró a uno.
       if (role == UserRole.ceo) {
-        const ceoAllowed = ['/ceo'];
-        if (!ceoAllowed.any((r) => path.startsWith(r))) return '/ceo';
+        final inPreview = selectedBusiness != null;
+        if (!inPreview) {
+          // Sin negocio seleccionado → solo el panel CEO.
+          if (path != '/ceo') return '/ceo';
+          return null;
+        }
+        // En preview puede VER dashboard/inventario/fiados/reportes y volver al
+        // panel. NO puede vender ni editar (solo lectura).
+        const blocked = ['/pos', '/inventory/add', '/inventory/edit', '/admin-panel'];
+        if (blocked.any((r) => path.startsWith(r))) return '/dashboard';
+        const allowed = ['/ceo', '/dashboard', '/inventory', '/fiados', '/reports'];
+        if (!allowed.any((r) => path.startsWith(r))) return '/dashboard';
         return null;
       }
 
@@ -198,13 +208,29 @@ class _AppShellState extends ConsumerState<AppShell> {
         icon: Icon(Icons.inventory_2_outlined), label: 'Inventario'),
   ];
 
+  // CEO en preview: ve todo menos Vender (POS). Solo lectura.
+  static const _ceoRoutes = ['/dashboard', '/inventory', '/fiados', '/reports'];
+  static const _ceoItems = [
+    BottomNavigationBarItem(
+        icon: Icon(Icons.dashboard_outlined), label: 'Dashboard'),
+    BottomNavigationBarItem(
+        icon: Icon(Icons.inventory_2_outlined), label: 'Inventario'),
+    BottomNavigationBarItem(
+        icon: Icon(Icons.people_outline), label: 'Fiados'),
+    BottomNavigationBarItem(
+        icon: Icon(Icons.bar_chart_outlined), label: 'Reportes'),
+  ];
+
   int _currentIndex = 0;
 
   @override
   Widget build(BuildContext context) {
     final role = ref.watch(currentUserRoleProvider);
-    final routes = role == UserRole.worker ? _workerRoutes : _adminRoutes;
-    final items = role == UserRole.worker ? _workerItems : _adminItems;
+    final (routes, items) = switch (role) {
+      UserRole.worker => (_workerRoutes, _workerItems),
+      UserRole.ceo => (_ceoRoutes, _ceoItems),
+      _ => (_adminRoutes, _adminItems),
+    };
 
     // Sincronizar índice con ruta actual
     final location = GoRouterState.of(context).matchedLocation;

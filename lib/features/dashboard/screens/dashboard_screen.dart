@@ -24,13 +24,25 @@ class DashboardScreen extends ConsumerWidget {
 
     final isWorker = role == UserRole.worker;
     final isAdmin = role == UserRole.admin;
+    final isCeoPreview = ref.watch(isCeoPreviewProvider);
 
     return Scaffold(
       appBar: AppBar(
+        // En preview, una flecha para volver al panel CEO (salir del negocio).
+        leading: isCeoPreview
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                tooltip: 'Volver al panel CEO',
+                onPressed: () {
+                  ref.read(selectedBusinessProvider.notifier).state = null;
+                  context.go('/ceo');
+                },
+              )
+            : null,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Dashboard'),
+            Text(isCeoPreview ? 'Vista CEO' : 'Dashboard'),
             if (business != null)
               Text(business.name,
                   style: const TextStyle(fontSize: 12, color: AppTheme.primary)),
@@ -44,10 +56,12 @@ class DashboardScreen extends ConsumerWidget {
               tooltip: 'Equipo',
               onPressed: () => context.push('/admin-panel'),
             ),
-          IconButton(
-            icon: const Icon(Icons.logout_outlined),
-            onPressed: () => ref.read(authNotifierProvider.notifier).logout(),
-          ),
+          // El CEO sale con la flecha; no mostramos logout en preview.
+          if (!isCeoPreview)
+            IconButton(
+              icon: const Icon(Icons.logout_outlined),
+              onPressed: () => ref.read(authNotifierProvider.notifier).logout(),
+            ),
         ],
       ),
       body: RefreshIndicator(
