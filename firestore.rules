@@ -1,0 +1,46 @@
+rules_version = '2';
+
+// Reglas de seguridad de Firestore.
+//
+// Etapa 3 (base segura): se EXIGE sesión iniciada para TODO acceso. Esto cierra
+// el acceso público/anónimo que tenía la base en modo prueba (cualquiera con la
+// URL podía leer/escribir). La creación de negocios queda solo para el CEO.
+//
+// Pendiente (endurecimiento por negocio): que un trabajador del negocio A no
+// pueda leer datos del negocio B vía API directa. Eso requiere un índice de
+// membresías por usuario (users/{uid}.businessIds) y se hará en un paso aparte
+// con pruebas, para no arriesgar la app en vivo.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isCeo() {
+      return signedIn()
+        && request.auth.token.email == 'antonio.geldes1701@gmail.com';
+    }
+
+    // Negocios: cualquiera con sesión los lee (nombres para el menú de
+    // selección y el preview); solo el CEO los crea/edita/borra.
+    match /businesses/{id} {
+      allow read: if signedIn();
+      allow create, update, delete: if isCeo();
+    }
+
+    // Perfil, membresías y datos del negocio: requieren sesión iniciada.
+    match /users/{uid}          { allow read, write: if signedIn(); }
+    match /memberships/{id}     { allow read, write: if signedIn(); }
+    match /products/{id}        { allow read, write: if signedIn(); }
+    match /sales/{id}           { allow read, write: if signedIn(); }
+    match /clients/{id}         { allow read, write: if signedIn(); }
+    match /fiado_payments/{id}  { allow read, write: if signedIn(); }
+
+    // Todo lo demás: denegado por defecto (no hace falta declararlo, pero queda
+    // explícito).
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

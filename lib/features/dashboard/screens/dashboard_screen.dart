@@ -62,14 +62,25 @@ class DashboardScreen extends ConsumerWidget {
             PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert),
               onSelected: (v) {
+                if (v == 'switch') {
+                  ref.read(selectedBusinessProvider.notifier).state = null;
+                  ref.read(selectedMembershipProvider.notifier).state = null;
+                  context.go('/select-business');
+                }
                 if (v == 'password') showChangePasswordDialog(context, ref);
                 if (v == 'logout') {
                   ref.read(authNotifierProvider.notifier).logout();
                 }
               },
-              itemBuilder: (_) => const [
-                PopupMenuItem(value: 'password', child: Text('Cambiar contraseña')),
-                PopupMenuItem(value: 'logout', child: Text('Cerrar sesión')),
+              itemBuilder: (_) => [
+                // Solo si la persona pertenece a 2+ negocios.
+                if ((ref.watch(userMembershipsProvider).valueOrNull?.length ?? 0) >= 2)
+                  const PopupMenuItem(
+                      value: 'switch', child: Text('Cambiar negocio')),
+                const PopupMenuItem(
+                    value: 'password', child: Text('Cambiar contraseña')),
+                const PopupMenuItem(
+                    value: 'logout', child: Text('Cerrar sesión')),
               ],
             ),
         ],

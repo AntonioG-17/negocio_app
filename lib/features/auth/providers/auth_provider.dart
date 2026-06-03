@@ -302,6 +302,18 @@ class AuthNotifier extends AsyncNotifier<void> {
       throw Exception('Ese correo ya está vinculado a este negocio');
     }
 
+    // 1) Asegurar la cuenta PRIMERO (así no queda una membresía huérfana si la
+    // creación de cuenta falla por un motivo inesperado).
+    String? newUid;
+    try {
+      newUid = await _createFirebaseUser(
+          emailLc, 'Tmp${DateTime.now().millisecondsSinceEpoch}A1!');
+    } on FirebaseAuthException catch (e) {
+      if (e.code != 'email-already-in-use') rethrow;
+      // Ya tiene cuenta → solo se vincula (no hace falta crear nada).
+    }
+
+    // 2) Crear la membresía (vínculo).
     await _db.collection(AppConstants.colMemberships).add(Membership.toMap(
           email: emailLc,
           name: name,
@@ -310,21 +322,16 @@ class AuthNotifier extends AsyncNotifier<void> {
           isActive: true,
         ));
 
-    // ¿Crear cuenta nueva? Intentamos; si ya existe, solo se vincula.
-    try {
-      final uid = await _createFirebaseUser(
-          emailLc, 'tmp${DateTime.now().millisecondsSinceEpoch}A1!');
-      // Perfil con el nombre (para saludos / nombre en ventas).
-      await _db.collection(AppConstants.colUsers).doc(uid).set({
+    // 3) Si la cuenta es nueva: perfil con el nombre + link para que ponga su
+    // propia contraseña.
+    if (newUid != null) {
+      await _db.collection(AppConstants.colUsers).doc(newUid).set({
         'email': emailLc,
         'name': name.trim(),
         'createdAt': FieldValue.serverTimestamp(),
       });
       await _auth.setLanguageCode('es');
       await _auth.sendPasswordResetEmail(email: emailLc);
-    } on FirebaseAuthException catch (e) {
-      if (e.code != 'email-already-in-use') rethrow;
-      // Ya tiene cuenta → la membresía basta.
     }
   }
 
