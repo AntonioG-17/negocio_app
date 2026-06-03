@@ -10,6 +10,7 @@ import 'package:negocio_app/features/dashboard/providers/dashboard_provider.dart
 import 'package:negocio_app/features/admin/screens/admin_panel_screen.dart';
 import 'package:negocio_app/features/auth/models/user_model.dart';
 import 'package:negocio_app/features/auth/providers/auth_provider.dart';
+import 'package:negocio_app/features/auth/screens/auth_action_screen.dart';
 import 'package:negocio_app/features/auth/screens/business_select_screen.dart';
 import 'package:negocio_app/features/auth/screens/login_screen.dart';
 import 'package:negocio_app/features/ceo/screens/ceo_screen.dart';
@@ -47,9 +48,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       final authState = ref.read(authStateProvider);
       final selectedBusiness = ref.read(selectedBusinessProvider);
 
+      final path = state.matchedLocation;
+
+      // Página pública de recuperación / invitación (llega del correo). No
+      // depende de la sesión.
+      if (path == '/recuperar') return null;
+
       if (authState.isLoading) return null;
       final isLoggedIn = authState.valueOrNull != null;
-      final path = state.matchedLocation;
 
       if (!isLoggedIn) {
         return path != '/login' ? '/login' : null;
@@ -106,6 +112,13 @@ final routerProvider = Provider<GoRouter>((ref) {
     },
     routes: [
       GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
+      GoRoute(
+        path: '/recuperar',
+        builder: (_, state) => AuthActionScreen(
+          mode: state.uri.queryParameters['mode'],
+          oobCode: state.uri.queryParameters['oobCode'],
+        ),
+      ),
       GoRoute(path: '/select-business', builder: (_, _) => const BusinessSelectScreen()),
       GoRoute(path: '/ceo', builder: (_, _) => const CeoScreen()),
       // Fuera del shell → pantalla completa con botón de volver, sin barra inferior.
