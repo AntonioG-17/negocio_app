@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:negocio_app/core/theme/app_theme.dart';
-import 'package:negocio_app/features/auth/models/user_model.dart';
+import 'package:negocio_app/features/auth/models/membership_model.dart';
 import 'package:negocio_app/features/auth/providers/auth_provider.dart';
 
 class AdminPanelScreen extends ConsumerWidget {
@@ -43,10 +43,13 @@ class AdminPanelScreen extends ConsumerWidget {
   }
 
   void _showCreateDialog(BuildContext context, WidgetRef ref) {
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      barrierDismissible: false,
-      builder: (_) => const _CreateWorkerDialog(),
+      isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
+      backgroundColor: AppTheme.surface,
+      builder: (_) => const _InviteWorkerSheet(),
     );
   }
 }
@@ -56,7 +59,7 @@ class AdminPanelScreen extends ConsumerWidget {
 // ────────────────────────────────────────────────
 
 class _WorkerTile extends ConsumerWidget {
-  final UserModel worker;
+  final Membership worker;
   const _WorkerTile({required this.worker});
 
   @override
@@ -142,7 +145,7 @@ class _WorkerTile extends ConsumerWidget {
                   activeThumbColor: AppTheme.primary,
                   onChanged: (val) => ref
                       .read(authNotifierProvider.notifier)
-                      .setWorkerActive(worker.uid, val),
+                      .setMembershipActive(worker.id, val),
                 ),
               ],
             ),
@@ -170,7 +173,7 @@ class _WorkerTile extends ConsumerWidget {
               Navigator.pop(ctx);
               await ref
                   .read(authNotifierProvider.notifier)
-                  .removeWorker(worker.uid);
+                  .removeMembership(worker.id);
             },
             child: const Text('Remover'),
           ),
@@ -181,181 +184,145 @@ class _WorkerTile extends ConsumerWidget {
 }
 
 // ────────────────────────────────────────────────
-// Dialogo: crear trabajador
+// Hoja: invitar trabajador por correo (pone su propia contraseña)
 // ────────────────────────────────────────────────
 
-class _CreateWorkerDialog extends ConsumerStatefulWidget {
-  const _CreateWorkerDialog();
+class _InviteWorkerSheet extends ConsumerStatefulWidget {
+  const _InviteWorkerSheet();
 
   @override
-  ConsumerState<_CreateWorkerDialog> createState() =>
-      _CreateWorkerDialogState();
+  ConsumerState<_InviteWorkerSheet> createState() => _InviteWorkerSheetState();
 }
 
-class _CreateWorkerDialogState extends ConsumerState<_CreateWorkerDialog> {
-  final _formKey = GlobalKey<FormState>();
+class _InviteWorkerSheetState extends ConsumerState<_InviteWorkerSheet> {
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
-  final _passCtrl = TextEditingController();
-  bool _obscure = true;
-  bool _done = false;
+  bool _saving = false;
+  String? _error;
 
   @override
   void dispose() {
     _nameCtrl.dispose();
     _emailCtrl.dispose();
-    _passCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-    await ref.read(authNotifierProvider.notifier).createWorker(
-          name: _nameCtrl.text,
-          email: _emailCtrl.text,
-          password: _passCtrl.text,
+    final name = _nameCtrl.text.trim();
+    final email = _emailCtrl.text.trim();
+    if (name.isEmpty) {
+      setState(() => _error = 'Ingresa el nombre');
+      return;
+    }
+    if (!email.contains('@')) {
+      setState(() => _error = 'Correo inválido');
+      return;
+    }
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    final messenger = ScaffoldMessenger.of(context);
+    await ref.read(authNotifierProvider.notifier).inviteWorker(
+          name: name,
+          email: email,
         );
     final s = ref.read(authNotifierProvider);
     if (!mounted) return;
     if (s.hasError) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(_friendlyError(s.error)),
-        backgroundColor: AppTheme.error,
-      ));
-    } else {
-      setState(() => _done = true);
+      setState(() {
+        _saving = false;
+        _error = _friendlyError(s.error);
+      });
+      return;
     }
+    Navigator.pop(context);
+    messenger.showSnackBar(SnackBar(
+      content: Text('Invitación enviada a $email. Le llegará un correo para '
+          'crear su contraseña.'),
+      backgroundColor: AppTheme.success,
+    ));
   }
 
   String _friendlyError(Object? e) {
     final msg = e.toString();
-    if (msg.contains('email-already-in-use')) return 'Ese correo ya está registrado';
-    return 'Error al crear la cuenta';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final loading = ref.watch(authNotifierProvider).isLoading;
-
-    // Pantalla de confirmación con credenciales
-    if (_done) {
-      return AlertDialog(
-        backgroundColor: AppTheme.surface,
-        title: const Row(children: [
-          Icon(Icons.check_circle, color: AppTheme.success),
-          SizedBox(width: 8),
-          Text('Trabajador creado'),
-        ]),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Comparte estas credenciales con el trabajador:',
-              style: TextStyle(color: AppTheme.onSurfaceMuted, fontSize: 13),
-            ),
-            const SizedBox(height: 16),
-            _CredBox(label: 'Nombre', value: _nameCtrl.text),
-            const SizedBox(height: 6),
-            _CredBox(label: 'Correo', value: _emailCtrl.text),
-            const SizedBox(height: 6),
-            _CredBox(label: 'Contraseña', value: _passCtrl.text),
-          ],
-        ),
-        actions: [
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Listo'),
-          ),
-        ],
-      );
+    if (msg.contains('ya está vinculado')) {
+      return 'Ese correo ya está en este negocio';
     }
-
-    return AlertDialog(
-      backgroundColor: AppTheme.surface,
-      title: const Text('Nuevo trabajador'),
-      content: Form(
-        key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextFormField(
-              controller: _nameCtrl,
-              decoration: const InputDecoration(
-                  labelText: 'Nombre', prefixIcon: Icon(Icons.person_outline)),
-              validator: (v) => v?.trim().isEmpty == true ? 'Requerido' : null,
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _emailCtrl,
-              keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                  labelText: 'Correo',
-                  prefixIcon: Icon(Icons.email_outlined)),
-              validator: (v) =>
-                  v?.contains('@') == true ? null : 'Correo inválido',
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _passCtrl,
-              obscureText: _obscure,
-              decoration: InputDecoration(
-                labelText: 'Contraseña temporal',
-                prefixIcon: const Icon(Icons.lock_outlined),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                      _obscure ? Icons.visibility_off : Icons.visibility),
-                  onPressed: () => setState(() => _obscure = !_obscure),
-                ),
-              ),
-              validator: (v) =>
-                  (v?.length ?? 0) >= 6 ? null : 'Mínimo 6 caracteres',
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: loading ? null : () => Navigator.pop(context),
-          child: const Text('Cancelar'),
-        ),
-        ElevatedButton(
-          onPressed: loading ? null : _submit,
-          child: loading
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                      strokeWidth: 2, color: Colors.black))
-              : const Text('Crear'),
-        ),
-      ],
-    );
+    return 'No se pudo invitar. Intenta de nuevo.';
   }
-}
-
-class _CredBox extends StatelessWidget {
-  final String label;
-  final String value;
-  const _CredBox({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceVariant,
-        borderRadius: BorderRadius.circular(8),
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+        left: 20,
+        right: 20,
+        top: 16,
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label,
-              style: const TextStyle(
-                  color: AppTheme.onSurfaceMuted, fontSize: 11)),
-          const SizedBox(height: 2),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text('Invitar trabajador',
+              style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 4),
+          const Text(
+            'Le llegará un correo para crear su propia contraseña.',
+            style: TextStyle(color: AppTheme.onSurfaceMuted, fontSize: 13),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _nameCtrl,
+            textCapitalization: TextCapitalization.words,
+            textInputAction: TextInputAction.next,
+            decoration: const InputDecoration(
+              labelText: 'Nombre',
+              prefixIcon: Icon(Icons.person_outline),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _emailCtrl,
+            keyboardType: TextInputType.emailAddress,
+            autocorrect: false,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => _submit(),
+            decoration: const InputDecoration(
+              labelText: 'Correo',
+              prefixIcon: Icon(Icons.email_outlined),
+            ),
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: 12),
+            Text(_error!,
+                style: const TextStyle(color: AppTheme.error, fontSize: 13)),
+          ],
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: _saving ? null : () => Navigator.pop(context),
+                  child: const Text('Cancelar'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: _saving ? null : _submit,
+                  child: _saving
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.black))
+                      : const Text('Invitar'),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );

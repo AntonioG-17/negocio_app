@@ -190,12 +190,35 @@ y que una persona pueda pertenecer a varios negocios con distinto rol.
   (`FirebaseAuth.sendPasswordResetEmail`). Funciona para cualquier cuenta. El CEO
   mantiene sus credenciales reales actuales (no se tocó). Casos que no puedan
   recuperar → reset manual desde la consola de Firebase.
-- **Etapa 2 (PENDIENTE):** modelo de **membresías** (persona ↔ negocio ↔ rol) para
-  multi-negocio: admin en uno y trabajador en otro, o trabajador en varios.
-  Onboarding por **invitación por correo** (la persona pone su clave). El menú
-  "Selecciona tu negocio" pasa a ser el switcher entre negocios.
+- **Etapa 2 (HECHA):** modelo de **membresías** (persona ↔ negocio ↔ rol).
 - **Etapa 3 (PENDIENTE):** **cerrar reglas de Firestore** (hoy abiertas) según
   membresías; el CEO ve todo.
+
+## Modelo de membresías (Etapa 2)
+
+Colección `memberships`: `{ email(minúsculas), name, businessId, role(admin|worker),
+isActive, createdAt }`. La clave es el **correo** (no el uid) para poder vincular
+cuentas existentes e invitar sin conocer el uid. Todas las queries son de 2
+igualdades (email+isActive, businessId+role, email+businessId) → zigzag merge,
+**sin índices compuestos**.
+
+- `userMembershipsProvider`: membresías activas del correo logueado → 0 / 1 / 2+.
+- `selectedMembershipProvider`: la membresía elegida; de ahí sale el **rol** del
+  negocio activo. `currentUserRoleProvider` = CEO si el correo es el del CEO,
+  si no el rol de la membresía seleccionada.
+- **Login/refresh:** 0 → "sin negocio"; 1 → entra directo; 2+ → menú estilo CEO
+  (`business_select_screen`, tarjetas con el rol). `loadBusinessForCurrentUser`
+  migra cuentas legacy y auto-entra si hay una sola membresía.
+- **CEO:** cuenta especial por correo (`isCeoEmailProvider`), no usa membresías;
+  ve todos los negocios y entra a cualquiera en preview (solo lectura).
+- **Invitar por correo** (`inviteWorker` / `createBusinessWithAdmin` →
+  `_inviteToBusinessId`): crea la membresía; si el correo NO tiene cuenta, la
+  crea con clave aleatoria + manda link de recuperación para que ponga la suya;
+  si YA tiene cuenta (admin de otro negocio), solo se vincula.
+- **Migración:** `_migrateLegacyMembership` convierte el `users/{uid}.businessId+role`
+  viejo en una membresía, una sola vez (idempotente), en login y al recargar.
+- El panel de equipo (`admin_panel`) lista/gestiona **membresías** worker del
+  negocio (activar/desactivar, remover = borrar la membresía).
 
 ## CEO Preview (modo solo lectura) — implementado
 

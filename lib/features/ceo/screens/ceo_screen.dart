@@ -86,45 +86,167 @@ class CeoScreen extends ConsumerWidget {
   }
 
   void _showCreateDialog(BuildContext context, WidgetRef ref) {
-    final ctrl = TextEditingController();
-    var creating = false;
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppTheme.surface,
-        title: const Text('Nuevo negocio'),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          decoration: const InputDecoration(labelText: 'Nombre del negocio'),
-          textCapitalization: TextCapitalization.words,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancelar'),
+      isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
+      backgroundColor: AppTheme.surface,
+      builder: (_) => const _NewBusinessSheet(),
+    );
+  }
+}
+
+// Hoja: crear negocio + invitar a su admin por correo.
+class _NewBusinessSheet extends ConsumerStatefulWidget {
+  const _NewBusinessSheet();
+
+  @override
+  ConsumerState<_NewBusinessSheet> createState() => _NewBusinessSheetState();
+}
+
+class _NewBusinessSheetState extends ConsumerState<_NewBusinessSheet> {
+  final _bizCtrl = TextEditingController();
+  final _adminNameCtrl = TextEditingController();
+  final _adminEmailCtrl = TextEditingController();
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _bizCtrl.dispose();
+    _adminNameCtrl.dispose();
+    _adminEmailCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final biz = _bizCtrl.text.trim();
+    final adminName = _adminNameCtrl.text.trim();
+    final adminEmail = _adminEmailCtrl.text.trim();
+    if (biz.isEmpty) {
+      setState(() => _error = 'Ingresa el nombre del negocio');
+      return;
+    }
+    if (adminName.isEmpty) {
+      setState(() => _error = 'Ingresa el nombre del admin');
+      return;
+    }
+    if (!adminEmail.contains('@')) {
+      setState(() => _error = 'Correo del admin inválido');
+      return;
+    }
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    final messenger = ScaffoldMessenger.of(context);
+    await ref.read(authNotifierProvider.notifier).createBusinessWithAdmin(
+          businessName: biz,
+          adminName: adminName,
+          adminEmail: adminEmail,
+          adminPassword: '',
+        );
+    final s = ref.read(authNotifierProvider);
+    if (!mounted) return;
+    if (s.hasError) {
+      setState(() {
+        _saving = false;
+        _error = 'No se pudo crear. Revisa los datos.';
+      });
+      return;
+    }
+    Navigator.pop(context);
+    messenger.showSnackBar(SnackBar(
+      content: Text('Negocio creado. Invitación enviada a $adminEmail.'),
+      backgroundColor: AppTheme.success,
+    ));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+        left: 20,
+        right: 20,
+        top: 16,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Nuevo negocio',
+              style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 4),
+          const Text(
+            'Crea el negocio e invita a su administrador por correo.',
+            style: TextStyle(color: AppTheme.onSurfaceMuted, fontSize: 13),
           ),
-          StatefulBuilder(
-            builder: (ctx2, setBtn) => ElevatedButton(
-              // Guard contra doble-tap (crearía negocios duplicados).
-              onPressed: creating
-                  ? null
-                  : () async {
-                      if (ctrl.text.trim().isEmpty) return;
-                      creating = true;
-                      setBtn(() {});
-                      await ref
-                          .read(authNotifierProvider.notifier)
-                          .createBusiness(ctrl.text);
-                      if (ctx.mounted) Navigator.pop(ctx);
-                    },
-              child: const Text('Crear'),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _bizCtrl,
+            textCapitalization: TextCapitalization.words,
+            textInputAction: TextInputAction.next,
+            decoration: const InputDecoration(
+              labelText: 'Nombre del negocio',
+              prefixIcon: Icon(Icons.store_outlined),
             ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _adminNameCtrl,
+            textCapitalization: TextCapitalization.words,
+            textInputAction: TextInputAction.next,
+            decoration: const InputDecoration(
+              labelText: 'Nombre del admin',
+              prefixIcon: Icon(Icons.person_outline),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _adminEmailCtrl,
+            keyboardType: TextInputType.emailAddress,
+            autocorrect: false,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => _submit(),
+            decoration: const InputDecoration(
+              labelText: 'Correo del admin',
+              prefixIcon: Icon(Icons.email_outlined),
+            ),
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: 12),
+            Text(_error!,
+                style: const TextStyle(color: AppTheme.error, fontSize: 13)),
+          ],
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: _saving ? null : () => Navigator.pop(context),
+                  child: const Text('Cancelar'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: _saving ? null : _submit,
+                  child: _saving
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.black))
+                      : const Text('Crear'),
+                ),
+              ),
+            ],
           ),
         ],
       ),
-    ).whenComplete(ctrl.dispose);
+    );
   }
 }
 

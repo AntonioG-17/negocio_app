@@ -34,8 +34,9 @@ final routerProvider = Provider<GoRouter>((ref) {
   // re-evalúa el redirect vía refreshListenable.
   final refresh = ValueNotifier<int>(0);
   ref.listen(authStateProvider, (_, _) => refresh.value++);
-  ref.listen(userProfileProvider, (_, _) => refresh.value++);
+  ref.listen(userMembershipsProvider, (_, _) => refresh.value++);
   ref.listen(selectedBusinessProvider, (_, _) => refresh.value++);
+  ref.listen(selectedMembershipProvider, (_, _) => refresh.value++);
   ref.onDispose(refresh.dispose);
 
   return GoRouter(
@@ -44,7 +45,6 @@ final routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: refresh,
     redirect: (context, state) {
       final authState = ref.read(authStateProvider);
-      final userProfile = ref.read(userProfileProvider);
       final selectedBusiness = ref.read(selectedBusinessProvider);
 
       if (authState.isLoading) return null;
@@ -55,21 +55,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         return path != '/login' ? '/login' : null;
       }
 
-      // Esperar que cargue el perfil
-      if (userProfile.isLoading) return null;
-
-      final role = userProfile.valueOrNull?.role;
-
-      // CEO: panel CEO, o preview de un negocio (solo lectura) si entró a uno.
-      if (role == UserRole.ceo) {
+      // CEO: cuenta especial por correo → panel CEO, o preview (solo lectura).
+      if (ref.read(isCeoEmailProvider)) {
         final inPreview = selectedBusiness != null;
         if (!inPreview) {
-          // Sin negocio seleccionado → solo el panel CEO.
           if (path != '/ceo') return '/ceo';
           return null;
         }
-        // En preview puede VER dashboard/inventario/fiados/reportes y volver al
-        // panel. NO puede vender ni editar (solo lectura).
         const blocked = ['/pos', '/inventory/add', '/inventory/edit', '/admin-panel'];
         if (blocked.any((r) => path.startsWith(r))) return '/dashboard';
         const allowed = ['/ceo', '/dashboard', '/inventory', '/fiados', '/reports'];
@@ -77,46 +69,38 @@ final routerProvider = Provider<GoRouter>((ref) {
         return null;
       }
 
-      // Trabajador desactivado: cerrar sesión y mandar al login
-      final profile = userProfile.valueOrNull;
-      if (profile != null && profile.role == UserRole.worker && !profile.isActive) {
-        Future.microtask(() => ref.read(authNotifierProvider.notifier).logout());
-        return '/login';
-      }
+      // No-CEO: el flujo depende de las membresías (0 / 1 / 2+ negocios).
+      final memberships = ref.read(userMembershipsProvider);
+      if (memberships.isLoading) return null;
+      final list = memberships.valueOrNull ?? [];
+      final role = ref.read(currentUserRoleProvider); // del negocio elegido
 
-      final hasBusiness = selectedBusiness != null;
-
-      if (hasBusiness) {
-        if (path == '/login' || path == '/select-business') {
+      // Ya hay un negocio activo.
+      if (selectedBusiness != null) {
+        if (path == '/' || path == '/login' || path == '/select-business') {
           return '/dashboard';
         }
-        // Trabajadores no pueden acceder a estas rutas
         if (role == UserRole.worker) {
           const forbidden = ['/fiados', '/reports', '/admin-panel'];
           if (forbidden.any((r) => path.startsWith(r))) return '/dashboard';
-          // Pueden ver inventario pero no agregar/editar productos
-          if (path.startsWith('/inventory/add') || path.startsWith('/inventory/edit')) {
+          if (path.startsWith('/inventory/add') ||
+              path.startsWith('/inventory/edit')) {
             return '/inventory';
           }
         }
         return null;
       }
 
-      // Tras un refresh/auto-recarga, selectedBusiness (estado en memoria) se
-      // pierde. Admin/Worker tienen un único negocio (su businessId) → recargarlo
-      // automáticamente en vez de mandarlos a "seleccionar negocio" (donde el
-      // trabajador quedaba atascado porque se busca por ownerId).
-      if (profile?.businessId != null &&
-          (role == UserRole.admin || role == UserRole.worker)) {
-        Future.microtask(
-            () => ref.read(authNotifierProvider.notifier).loadBusinessForCurrentUser());
+      // Sin negocio activo: migrar (si es cuenta legacy) + auto-entrar si hay
+      // un solo negocio. Con 0 o 2+ → menú de selección estilo CEO.
+      Future.microtask(
+          () => ref.read(authNotifierProvider.notifier).loadBusinessForCurrentUser());
+      if (list.length == 1) {
         if (path == '/' || path == '/login' || path == '/select-business') {
           return '/dashboard';
         }
         return null;
       }
-
-      // Sin negocio cargado → pantalla de selección (legacy/fallback para dueños)
       if (path != '/select-business') return '/select-business';
       return null;
     },

@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:negocio_app/core/constants/app_constants.dart';
 import 'package:negocio_app/features/auth/models/business_model.dart';
+import 'package:negocio_app/features/auth/models/membership_model.dart';
 import 'package:negocio_app/features/auth/models/user_model.dart';
 import 'package:negocio_app/features/pos/providers/pos_provider.dart';
 import 'package:negocio_app/firebase_options.dart';
@@ -15,9 +16,14 @@ final authStateProvider = StreamProvider<User?>((ref) {
   return ref.watch(firebaseAuthProvider).authStateChanges();
 });
 
+// Negocio activo (el que se está viendo/operando).
 final selectedBusinessProvider = StateProvider<Business?>((ref) => null);
 
-// Perfil del usuario actual desde Firestore
+// Membresía activa (negocio + rol) del usuario no-CEO. Se setea al elegir un
+// negocio. De aquí sale el ROL para ese negocio.
+final selectedMembershipProvider = StateProvider<Membership?>((ref) => null);
+
+// Perfil del usuario (nombre/correo). El rol legacy ya no se usa para permisos.
 final userProfileProvider = StreamProvider<UserModel?>((ref) {
   final user = ref.watch(authStateProvider).valueOrNull;
   if (user == null) return Stream.value(null);
@@ -29,22 +35,59 @@ final userProfileProvider = StreamProvider<UserModel?>((ref) {
       .map((snap) => snap.exists ? UserModel.fromFirestore(snap) : null);
 });
 
-final currentUserRoleProvider = Provider<UserRole?>((ref) {
-  return ref.watch(userProfileProvider).valueOrNull?.role;
+// ¿La cuenta es la del CEO? (cuenta especial por correo, ve todos los negocios).
+final isCeoEmailProvider = Provider<bool>((ref) {
+  final email = ref.watch(authStateProvider).valueOrNull?.email?.toLowerCase();
+  return email != null && email == AppConstants.ceoEmail.toLowerCase();
 });
 
-// CEO viendo un negocio en modo SOLO LECTURA (preview). True cuando el rol es
-// CEO y hay un negocio seleccionado (el CEO entró a un negocio desde su panel).
-// En este modo se ocultan acciones de escritura (vender, agregar, editar).
+// Membresías activas del usuario (por correo). Decide 0 / 1 / 2+ negocios.
+final userMembershipsProvider = FutureProvider<List<Membership>>((ref) async {
+  final user = ref.watch(authStateProvider).valueOrNull;
+  final email = user?.email?.toLowerCase();
+  if (email == null) return [];
+  if (email == AppConstants.ceoEmail.toLowerCase()) return []; // CEO no usa membresías
+  final snap = await ref
+      .watch(firestoreProvider)
+      .collection(AppConstants.colMemberships)
+      .where('email', isEqualTo: email)
+      .where('isActive', isEqualTo: true)
+      .get();
+  return snap.docs.map(Membership.fromFirestore).toList();
+});
+
+// Negocios para el menú de selección (los de las membresías del usuario).
+final userMenuBusinessesProvider =
+    FutureProvider<List<({Business business, Membership membership})>>((ref) async {
+  final memberships = await ref.watch(userMembershipsProvider.future);
+  final db = ref.watch(firestoreProvider);
+  final out = <({Business business, Membership membership})>[];
+  for (final m in memberships) {
+    final snap =
+        await db.collection(AppConstants.colBusinesses).doc(m.businessId).get();
+    if (snap.exists) {
+      out.add((business: Business.fromFirestore(snap), membership: m));
+    }
+  }
+  out.sort((a, b) => a.business.name.compareTo(b.business.name));
+  return out;
+});
+
+// Rol efectivo: CEO por correo; si no, el rol de la membresía elegida.
+final currentUserRoleProvider = Provider<UserRole?>((ref) {
+  if (ref.watch(isCeoEmailProvider)) return UserRole.ceo;
+  return ref.watch(selectedMembershipProvider)?.role;
+});
+
+// CEO viendo un negocio en modo SOLO LECTURA (preview).
 final isCeoPreviewProvider = Provider<bool>((ref) {
-  return ref.watch(currentUserRoleProvider) == UserRole.ceo &&
+  return ref.watch(isCeoEmailProvider) &&
       ref.watch(selectedBusinessProvider) != null;
 });
 
-// Todos los negocios (solo CEO)
+// Todos los negocios (solo CEO).
 final allBusinessesProvider = StreamProvider<List<Business>>((ref) {
-  final role = ref.watch(currentUserRoleProvider);
-  if (role != UserRole.ceo) return const Stream.empty();
+  if (!ref.watch(isCeoEmailProvider)) return const Stream.empty();
   return ref
       .watch(firestoreProvider)
       .collection(AppConstants.colBusinesses)
@@ -53,29 +96,17 @@ final allBusinessesProvider = StreamProvider<List<Business>>((ref) {
       .map((snap) => snap.docs.map(Business.fromFirestore).toList());
 });
 
-// Trabajadores del negocio actual (solo admin)
-final businessWorkersProvider = StreamProvider<List<UserModel>>((ref) {
+// Trabajadores (membresías 'worker') del negocio actual — para el panel de equipo.
+final businessWorkersProvider = StreamProvider<List<Membership>>((ref) {
   final business = ref.watch(selectedBusinessProvider);
   if (business == null) return const Stream.empty();
   return ref
       .watch(firestoreProvider)
-      .collection(AppConstants.colUsers)
+      .collection(AppConstants.colMemberships)
       .where('businessId', isEqualTo: business.id)
       .where('role', isEqualTo: 'worker')
       .snapshots()
-      .map((snap) => snap.docs.map(UserModel.fromFirestore).toList());
-});
-
-// Legacy: negocios del usuario (para la pantalla de selección)
-final userBusinessesProvider = FutureProvider<List<Business>>((ref) async {
-  final user = ref.watch(firebaseAuthProvider).currentUser;
-  if (user == null) return [];
-  final db = ref.watch(firestoreProvider);
-  final snap = await db
-      .collection(AppConstants.colBusinesses)
-      .where('ownerId', isEqualTo: user.uid)
-      .get();
-  return snap.docs.map(Business.fromFirestore).toList();
+      .map((snap) => snap.docs.map(Membership.fromFirestore).toList());
 });
 
 class AuthNotifier extends AsyncNotifier<void> {
@@ -96,16 +127,11 @@ class AuthNotifier extends AsyncNotifier<void> {
     });
   }
 
-  // Envía un correo de recuperación de contraseña (link de Firebase). Funciona
-  // para cualquier cuenta existente. Por seguridad, Firebase no revela si el
-  // correo existe o no. setLanguageCode('es') → el correo llega en español.
   Future<void> sendPasswordReset(String email) async {
     await _auth.setLanguageCode('es');
     await _auth.sendPasswordResetEmail(email: email.trim());
   }
 
-  // Cambia la contraseña estando logueado: re-autentica con la actual y la
-  // actualiza. Lanza error si la actual es incorrecta.
   Future<void> changePassword(String current, String newPassword) async {
     final user = _auth.currentUser;
     if (user == null || user.email == null) {
@@ -119,18 +145,17 @@ class AuthNotifier extends AsyncNotifier<void> {
     await user.updatePassword(newPassword);
   }
 
-  // Inicializa la sesión: crea perfil CEO si aplica, o auto-carga el negocio
+  // Inicializa la sesión: crea perfil CEO si aplica, o migra membresía legacy.
   Future<void> _initUserSession() async {
     final user = _auth.currentUser;
     if (user == null) return;
+    final email = user.email?.toLowerCase();
 
-    final profileSnap =
-        await _db.collection(AppConstants.colUsers).doc(user.uid).get();
-
-    if (!profileSnap.exists) {
-      // Primera vez — si el email es del CEO, crear perfil CEO automáticamente
-      if (user.email?.toLowerCase() ==
-          AppConstants.ceoEmail.toLowerCase()) {
+    // CEO: cuenta especial. Crear su perfil si es la primera vez.
+    if (email == AppConstants.ceoEmail.toLowerCase()) {
+      final snap =
+          await _db.collection(AppConstants.colUsers).doc(user.uid).get();
+      if (!snap.exists) {
         await _db.collection(AppConstants.colUsers).doc(user.uid).set({
           'email': user.email,
           'name': 'CEO',
@@ -142,57 +167,79 @@ class AuthNotifier extends AsyncNotifier<void> {
       return;
     }
 
-    final profile = UserModel.fromFirestore(profileSnap);
+    await _migrateLegacyMembership(user);
+    // El router decide 0 / 1 / 2+ según userMembershipsProvider.
+    ref.invalidate(userMembershipsProvider);
+  }
 
-    // Trabajador inactivo: cerrar sesión y lanzar error
-    if (profile.role == UserRole.worker && !profile.isActive) {
-      await _auth.signOut();
-      throw Exception('Cuenta desactivada. Contacta al administrador del negocio.');
-    }
+  // Convierte un perfil legacy (users/{uid}.businessId+role) en una membresía,
+  // una sola vez, para no perder las cuentas creadas antes del modelo nuevo.
+  Future<void> _migrateLegacyMembership(User user) async {
+    final email = user.email!.toLowerCase();
+    final existing = await _db
+        .collection(AppConstants.colMemberships)
+        .where('email', isEqualTo: email)
+        .limit(1)
+        .get();
+    if (existing.docs.isNotEmpty) return; // ya tiene membresías
 
-    // Admin/Worker: auto-cargar su negocio
-    if (profile.businessId != null &&
-        (profile.role == UserRole.admin || profile.role == UserRole.worker)) {
-      final bizSnap = await _db
-          .collection(AppConstants.colBusinesses)
-          .doc(profile.businessId)
-          .get();
-      if (bizSnap.exists) {
-        ref.read(selectedBusinessProvider.notifier).state =
-            Business.fromFirestore(bizSnap);
-      }
+    final profSnap =
+        await _db.collection(AppConstants.colUsers).doc(user.uid).get();
+    if (!profSnap.exists) return;
+    final prof = UserModel.fromFirestore(profSnap);
+    if (prof.businessId == null) return;
+    if (prof.role != UserRole.admin && prof.role != UserRole.worker) return;
+
+    await _db.collection(AppConstants.colMemberships).add(Membership.toMap(
+          email: email,
+          name: prof.name,
+          businessId: prof.businessId!,
+          role: prof.role,
+          isActive: prof.isActive,
+        ));
+  }
+
+  // Elige un negocio (membresía) → setea negocio + membresía activos.
+  Future<void> selectMembership(Membership m) async {
+    final snap =
+        await _db.collection(AppConstants.colBusinesses).doc(m.businessId).get();
+    if (snap.exists) {
+      ref.read(selectedBusinessProvider.notifier).state =
+          Business.fromFirestore(snap);
+      ref.read(selectedMembershipProvider.notifier).state = m;
     }
   }
 
   bool _loadingBusiness = false;
+  String? _migratedUid;
 
-  // Recarga el negocio del usuario desde su businessId. Necesario tras un
-  // refresh / auto-recarga, donde selectedBusinessProvider (estado en memoria)
-  // se pierde y no hay un login que dispare _initUserSession. Sin esto, el
-  // trabajador quedaba atascado en "selecciona tu negocio".
+  // Tras un refresh (sin login): migra la cuenta legacy si hace falta y, si la
+  // persona tiene exactamente UNA membresía, entra directo. Con 2+ el router la
+  // manda al menú de selección.
   Future<void> loadBusinessForCurrentUser() async {
     if (_loadingBusiness) return;
     if (ref.read(selectedBusinessProvider) != null) return;
-    final profile = ref.read(userProfileProvider).valueOrNull;
-    final bizId = profile?.businessId;
-    if (bizId == null) return;
-    if (profile!.role != UserRole.admin && profile.role != UserRole.worker) {
-      return;
-    }
     _loadingBusiness = true;
     try {
-      final snap =
-          await _db.collection(AppConstants.colBusinesses).doc(bizId).get();
-      if (snap.exists) {
-        ref.read(selectedBusinessProvider.notifier).state =
-            Business.fromFirestore(snap);
+      final user = _auth.currentUser;
+      if (user == null) return;
+      final isCeo =
+          user.email?.toLowerCase() == AppConstants.ceoEmail.toLowerCase();
+      if (!isCeo && _migratedUid != user.uid) {
+        await _migrateLegacyMembership(user);
+        _migratedUid = user.uid;
+        ref.invalidate(userMembershipsProvider);
+      }
+      final memberships = await ref.read(userMembershipsProvider.future);
+      if (memberships.length == 1) {
+        await selectMembership(memberships.first);
       }
     } finally {
       _loadingBusiness = false;
     }
   }
 
-  // CEO: crea un negocio nuevo + cuenta del admin
+  // CEO: crea un negocio nuevo + invita a su admin por correo.
   Future<void> createBusinessWithAdmin({
     required String businessName,
     required String adminName,
@@ -202,63 +249,99 @@ class AuthNotifier extends AsyncNotifier<void> {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
       final bizRef = _db.collection(AppConstants.colBusinesses).doc();
-      final uid = await _createFirebaseUser(adminEmail, adminPassword);
-
       await bizRef.set({
         'name': businessName.trim(),
-        'ownerId': uid,
         'createdAt': FieldValue.serverTimestamp(),
       });
-
-      await _db.collection(AppConstants.colUsers).doc(uid).set({
-        'email': adminEmail.trim(),
-        'name': adminName.trim(),
-        'role': UserRole.admin.name,
-        'businessId': bizRef.id,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      await _inviteToBusinessId(
+        businessId: bizRef.id,
+        name: adminName,
+        email: adminEmail,
+        role: UserRole.admin,
+      );
     });
   }
 
-  // Admin: crea cuenta de trabajador para su negocio
-  Future<void> createWorker({
+  // Admin: invita a un trabajador por correo a SU negocio.
+  Future<void> inviteWorker({
     required String name,
     required String email,
-    required String password,
   }) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
       final business = ref.read(selectedBusinessProvider);
       if (business == null) throw Exception('No hay negocio seleccionado');
+      await _inviteToBusinessId(
+        businessId: business.id,
+        name: name,
+        email: email,
+        role: UserRole.worker,
+      );
+    });
+  }
 
-      final uid = await _createFirebaseUser(email, password);
+  // Crea la membresía (vínculo) + asegura la cuenta del invitado:
+  // - si NO tiene cuenta → la crea con clave aleatoria y le manda el link de
+  //   recuperación para que ponga la suya (invitación por correo).
+  // - si YA tiene cuenta (p. ej. admin de otro negocio) → solo se vincula.
+  Future<void> _inviteToBusinessId({
+    required String businessId,
+    required String name,
+    required String email,
+    required UserRole role,
+  }) async {
+    final emailLc = email.trim().toLowerCase();
 
+    final dup = await _db
+        .collection(AppConstants.colMemberships)
+        .where('email', isEqualTo: emailLc)
+        .where('businessId', isEqualTo: businessId)
+        .limit(1)
+        .get();
+    if (dup.docs.isNotEmpty) {
+      throw Exception('Ese correo ya está vinculado a este negocio');
+    }
+
+    await _db.collection(AppConstants.colMemberships).add(Membership.toMap(
+          email: emailLc,
+          name: name,
+          businessId: businessId,
+          role: role,
+          isActive: true,
+        ));
+
+    // ¿Crear cuenta nueva? Intentamos; si ya existe, solo se vincula.
+    try {
+      final uid = await _createFirebaseUser(
+          emailLc, 'tmp${DateTime.now().millisecondsSinceEpoch}A1!');
+      // Perfil con el nombre (para saludos / nombre en ventas).
       await _db.collection(AppConstants.colUsers).doc(uid).set({
-        'email': email.trim(),
+        'email': emailLc,
         'name': name.trim(),
-        'role': UserRole.worker.name,
-        'businessId': business.id,
-        'isActive': true,
         'createdAt': FieldValue.serverTimestamp(),
       });
-    });
+      await _auth.setLanguageCode('es');
+      await _auth.sendPasswordResetEmail(email: emailLc);
+    } on FirebaseAuthException catch (e) {
+      if (e.code != 'email-already-in-use') rethrow;
+      // Ya tiene cuenta → la membresía basta.
+    }
   }
 
-  // Admin: quita a un trabajador del negocio
-  Future<void> removeWorker(String workerId) async {
-    await _db.collection(AppConstants.colUsers).doc(workerId).update({
-      'businessId': null,
-    });
+  // Admin: quita a un trabajador del negocio (borra su membresía aquí).
+  Future<void> removeMembership(String membershipId) async {
+    await _db.collection(AppConstants.colMemberships).doc(membershipId).delete();
   }
 
-  // Admin: activa o desactiva un trabajador
-  Future<void> setWorkerActive(String workerId, bool active) async {
-    await _db.collection(AppConstants.colUsers).doc(workerId).update({
-      'isActive': active,
-    });
+  // Admin: activa/desactiva a un trabajador (en este negocio).
+  Future<void> setMembershipActive(String membershipId, bool active) async {
+    await _db
+        .collection(AppConstants.colMemberships)
+        .doc(membershipId)
+        .update({'isActive': active});
   }
 
-  // Crea cuenta Firebase sin cerrar sesión del usuario actual (app secundaria)
+  // Crea cuenta Firebase sin cerrar sesión del usuario actual (app secundaria).
   Future<String> _createFirebaseUser(String email, String password) async {
     final name = 'tmp_${DateTime.now().millisecondsSinceEpoch}';
     FirebaseApp? tmp;
@@ -278,22 +361,19 @@ class AuthNotifier extends AsyncNotifier<void> {
 
   Future<void> logout() async {
     ref.read(selectedBusinessProvider.notifier).state = null;
+    ref.read(selectedMembershipProvider.notifier).state = null;
     // Limpiar el carrito: en un dispositivo compartido, evita que el siguiente
-    // usuario (otro trabajador) herede un carrito sin cobrar del anterior.
+    // usuario herede un carrito sin cobrar del anterior.
     ref.invalidate(cartProvider);
     await _auth.signOut();
   }
 
-  // Legacy — mantener compatibilidad
+  // CEO: crear negocio (solo el negocio; el admin se invita aparte).
   Future<void> createBusiness(String name) async {
-    final user = _auth.currentUser;
-    if (user == null) return;
     await _db.collection(AppConstants.colBusinesses).add({
       'name': name.trim(),
-      'ownerId': user.uid,
       'createdAt': FieldValue.serverTimestamp(),
     });
-    ref.invalidate(userBusinessesProvider);
   }
 }
 
