@@ -4,116 +4,153 @@ Pegar en: **Firebase Console → Authentication → Templates**
 
 ---
 
-## Configuración general (hacer una sola vez)
+## Configuración (hacer una sola vez)
 
-1. **Nombre del remitente:** `NegocioApp`
-2. **Dirección del remitente:** dejar la default de Firebase (`noreply@proyecto-app-negocio.firebaseapp.com`) o configurar dominio propio (ver sección al final)
-3. **URL de acción personalizada:** `https://proyecto-app-negocio.web.app/recuperar`
+1. Ir a [console.firebase.google.com](https://console.firebase.google.com) → proyecto `proyecto-app-negocio`
+2. **Authentication → Templates** (ícono de sobre en el menú superior)
+3. Seleccionar **"Restablecimiento de contraseña"** → ícono de lápiz (editar)
+4. Cambiar **Nombre del remitente** a: `NegocioApp`
+5. El **Correo del remitente** quedará como `noreply@proyecto-app-negocio.firebaseapp.com` — Firebase no permite cambiarlo sin un plan de pago con dominio propio. El nombre "NegocioApp" es lo que aparece visible en la bandeja de entrada.
+6. Cambiar el **Asunto** y pegar el **HTML del cuerpo** según el template de abajo
+7. En **"URL de acción personalizada"** pegar: `https://proyecto-app-negocio.web.app/recuperar`
+8. Guardar
 
 ---
 
-## Template 1 — Restablecer contraseña
+## Template — Restablecimiento de contraseña e invitaciones
+
+Firebase usa el mismo template para ambos casos (reset de contraseña + invitación de nuevo usuario). El asunto y diseño cubren ambos casos de forma neutral y elegante.
 
 **Asunto:**
 ```
-Restablecer contraseña — NegocioApp
+Acceso a NegocioApp
 ```
 
-**Cuerpo del mensaje (HTML):**
+**Cuerpo (HTML — pegar completo en Firebase Console):**
 
 ```html
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Restablecer contraseña</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
 </head>
-<body style="margin:0;padding:0;background-color:#0f1117;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#0f1117;padding:40px 20px;">
+<body style="margin:0;padding:0;background-color:#111318;font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#111318">
     <tr>
-      <td align="center">
-        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;">
+      <td align="center" style="padding:48px 16px 40px;">
 
-          <!-- Logo / Header -->
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;">
+
+          <!-- LOGO -->
           <tr>
-            <td align="center" style="padding-bottom:32px;">
-              <div style="display:inline-block;background:linear-gradient(135deg,#6c63ff,#a78bfa);border-radius:16px;padding:14px 24px;">
-                <span style="font-size:22px;font-weight:700;color:#ffffff;letter-spacing:-0.5px;">NegocioApp</span>
-              </div>
-            </td>
-          </tr>
-
-          <!-- Card -->
-          <tr>
-            <td style="background-color:#1a1d27;border-radius:20px;padding:40px 36px;border:1px solid #2a2d3a;">
-
-              <!-- Icon -->
-              <table width="100%" cellpadding="0" cellspacing="0">
+            <td align="center" style="padding-bottom:36px;">
+              <table role="presentation" cellpadding="0" cellspacing="0">
                 <tr>
-                  <td align="center" style="padding-bottom:24px;">
-                    <div style="width:56px;height:56px;background:linear-gradient(135deg,#6c63ff22,#a78bfa22);border:1px solid #6c63ff44;border-radius:14px;display:inline-block;line-height:56px;text-align:center;font-size:24px;">
-                      🔑
-                    </div>
-                  </td>
-                </tr>
-
-                <!-- Title -->
-                <tr>
-                  <td align="center" style="padding-bottom:12px;">
-                    <h1 style="margin:0;font-size:22px;font-weight:700;color:#f0f0f5;letter-spacing:-0.3px;">
-                      Restablecer contraseña
-                    </h1>
-                  </td>
-                </tr>
-
-                <!-- Body text -->
-                <tr>
-                  <td align="center" style="padding-bottom:32px;">
-                    <p style="margin:0;font-size:15px;color:#8b8fa8;line-height:1.6;max-width:360px;">
-                      Recibimos una solicitud para restablecer la contraseña de tu cuenta. Toca el botón para crear una nueva.
-                    </p>
-                  </td>
-                </tr>
-
-                <!-- CTA Button -->
-                <tr>
-                  <td align="center" style="padding-bottom:32px;">
-                    <a href="%LINK%"
-                       style="display:inline-block;background:linear-gradient(135deg,#6c63ff,#a78bfa);color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;padding:14px 36px;border-radius:12px;letter-spacing:0.2px;">
-                      Crear nueva contraseña
-                    </a>
-                  </td>
-                </tr>
-
-                <!-- Divider -->
-                <tr>
-                  <td style="border-top:1px solid #2a2d3a;padding-top:24px;padding-bottom:16px;">
-                    <p style="margin:0;font-size:13px;color:#555870;line-height:1.5;text-align:center;">
-                      Si no solicitaste restablecer tu contraseña, puedes ignorar este correo.<br>
-                      El enlace expira en <strong style="color:#8b8fa8;">1 hora</strong>.
-                    </p>
-                  </td>
-                </tr>
-
-                <!-- Link fallback -->
-                <tr>
-                  <td style="padding-top:4px;">
-                    <p style="margin:0;font-size:12px;color:#3d4055;text-align:center;line-height:1.5;">
-                      Si el botón no funciona, copia este enlace en tu navegador:<br>
-                      <span style="color:#6c63ff;word-break:break-all;">%LINK%</span>
-                    </p>
+                  <td style="background:#7c6ef7;border-radius:14px;padding:12px 22px;">
+                    <span style="font-size:20px;font-weight:700;color:#ffffff;letter-spacing:-0.4px;font-family:ui-sans-serif,-apple-system,sans-serif;">
+                      NegocioApp
+                    </span>
                   </td>
                 </tr>
               </table>
             </td>
           </tr>
 
-          <!-- Footer -->
+          <!-- CARD -->
+          <tr>
+            <td style="background-color:#1c1f2e;border-radius:18px;border:1px solid #252839;overflow:hidden;">
+
+              <!-- ACCENT BAR -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td height="4" style="background:#7c6ef7;font-size:0;line-height:0;">&nbsp;</td>
+                </tr>
+              </table>
+
+              <!-- CARD CONTENT -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="padding:40px 40px 36px;">
+
+                    <!-- TITLE -->
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td style="padding-bottom:12px;">
+                          <p style="margin:0;font-size:22px;font-weight:700;color:#ecedf5;letter-spacing:-0.4px;line-height:1.2;font-family:ui-sans-serif,-apple-system,sans-serif;">
+                            Configura tu contraseña
+                          </p>
+                        </td>
+                      </tr>
+
+                      <!-- BODY TEXT -->
+                      <tr>
+                        <td style="padding-bottom:32px;">
+                          <p style="margin:0;font-size:15px;color:#7f839e;line-height:1.65;font-family:ui-sans-serif,-apple-system,sans-serif;">
+                            Recibimos una solicitud relacionada con tu cuenta en NegocioApp.
+                            Usa el botón a continuación para establecer o restablecer tu contraseña
+                            y acceder a la plataforma.
+                          </p>
+                        </td>
+                      </tr>
+
+                      <!-- CTA BUTTON -->
+                      <tr>
+                        <td style="padding-bottom:36px;">
+                          <table role="presentation" cellpadding="0" cellspacing="0">
+                            <tr>
+                              <td style="background:#7c6ef7;border-radius:10px;">
+                                <a href="%LINK%"
+                                   style="display:block;padding:13px 32px;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;letter-spacing:0.1px;font-family:ui-sans-serif,-apple-system,sans-serif;white-space:nowrap;">
+                                  Configurar contraseña &rarr;
+                                </a>
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+
+                      <!-- DIVIDER -->
+                      <tr>
+                        <td height="1" style="background:#252839;font-size:0;line-height:0;padding-bottom:24px;">&nbsp;</td>
+                      </tr>
+
+                      <!-- EXPIRY NOTE -->
+                      <tr>
+                        <td style="padding-top:0;padding-bottom:20px;">
+                          <p style="margin:0;font-size:13px;color:#515470;line-height:1.6;font-family:ui-sans-serif,-apple-system,sans-serif;">
+                            Este enlace expira en <span style="color:#9b97c0;">1 hora</span>.
+                            Si no esperabas este correo, puedes ignorarlo — tu cuenta permanece segura.
+                          </p>
+                        </td>
+                      </tr>
+
+                      <!-- LINK FALLBACK -->
+                      <tr>
+                        <td style="background:#161825;border-radius:8px;padding:14px 16px;">
+                          <p style="margin:0 0 4px;font-size:11px;color:#3e4157;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;font-family:ui-sans-serif,-apple-system,sans-serif;">
+                            Si el botón no funciona, copia este enlace:
+                          </p>
+                          <p style="margin:0;font-size:12px;color:#7c6ef7;word-break:break-all;line-height:1.5;font-family:ui-monospace,'SF Mono','Fira Code',monospace;">
+                            %LINK%
+                          </p>
+                        </td>
+                      </tr>
+
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+            </td>
+          </tr>
+
+          <!-- FOOTER -->
           <tr>
             <td align="center" style="padding-top:28px;">
-              <p style="margin:0;font-size:12px;color:#3d4055;">
-                NegocioApp &nbsp;·&nbsp; Sistema de gestión de negocio
+              <p style="margin:0;font-size:12px;color:#333650;font-family:ui-sans-serif,-apple-system,sans-serif;">
+                &copy; 2026 NegocioApp &nbsp;&middot;&nbsp; Sistema de gestión para negocios
               </p>
             </td>
           </tr>
@@ -122,160 +159,36 @@ Restablecer contraseña — NegocioApp
       </td>
     </tr>
   </table>
+
 </body>
 </html>
 ```
 
 ---
 
-## Template 2 — Invitación de nuevo usuario
-
-Este email se envía cuando un admin o el CEO invita a alguien que no tiene cuenta.
-Firebase usa el mismo template de "Restablecer contraseña" para esto — el asunto y
-cuerpo se pueden personalizar en la misma sección.
-
-Para diferenciarlo, crear una **acción en Cloud Function** es la forma correcta,
-pero como aún no hay Cloud Functions en este proyecto, el template de abajo es
-una versión mejorada que funciona para ambos casos (reset + invitación).
-
-**Asunto alternativo sugerido para invitaciones:**
-Como Firebase no puede distinguir el asunto entre reset e invite con el mismo template,
-usar un asunto neutro que funcione en ambos contextos:
+## Vista previa del diseño
 
 ```
-Configura tu acceso — NegocioApp
+┌─────────────────────────────────────┐
+│           [ NegocioApp ]            │  ← logo con fondo púrpura
+│                                     │
+│  ┌───────────────────────────────┐  │
+│  │▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓│  │  ← barra púrpura superior
+│  │                               │  │
+│  │  Configura tu contraseña      │  │  ← título
+│  │                               │  │
+│  │  Recibimos una solicitud...   │  │  ← texto en gris
+│  │                               │  │
+│  │  [ Configurar contraseña → ]  │  │  ← botón púrpura
+│  │                               │  │
+│  │  ─────────────────────────   │  │
+│  │  Este enlace expira en 1h...  │  │
+│  │                               │  │
+│  │  ┌─────────────────────────┐  │  │
+│  │  │ https://proyecto-app... │  │  │  ← fallback monospace
+│  │  └─────────────────────────┘  │  │
+│  └───────────────────────────────┘  │
+│                                     │
+│    © 2026 NegocioApp · Sistema...   │  ← footer
+└─────────────────────────────────────┘
 ```
-
-**Cuerpo (versión que cubre ambos casos):**
-
-```html
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Acceso a NegocioApp</title>
-</head>
-<body style="margin:0;padding:0;background-color:#0f1117;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#0f1117;padding:40px 20px;">
-    <tr>
-      <td align="center">
-        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;">
-
-          <!-- Logo -->
-          <tr>
-            <td align="center" style="padding-bottom:32px;">
-              <div style="display:inline-block;background:linear-gradient(135deg,#6c63ff,#a78bfa);border-radius:16px;padding:14px 24px;">
-                <span style="font-size:22px;font-weight:700;color:#ffffff;letter-spacing:-0.5px;">NegocioApp</span>
-              </div>
-            </td>
-          </tr>
-
-          <!-- Card -->
-          <tr>
-            <td style="background-color:#1a1d27;border-radius:20px;padding:40px 36px;border:1px solid #2a2d3a;">
-              <table width="100%" cellpadding="0" cellspacing="0">
-
-                <!-- Icon -->
-                <tr>
-                  <td align="center" style="padding-bottom:24px;">
-                    <div style="width:56px;height:56px;background:linear-gradient(135deg,#6c63ff22,#a78bfa22);border:1px solid #6c63ff44;border-radius:14px;display:inline-block;line-height:56px;text-align:center;font-size:24px;">
-                      🔐
-                    </div>
-                  </td>
-                </tr>
-
-                <!-- Title -->
-                <tr>
-                  <td align="center" style="padding-bottom:12px;">
-                    <h1 style="margin:0;font-size:22px;font-weight:700;color:#f0f0f5;letter-spacing:-0.3px;">
-                      Configura tu contraseña
-                    </h1>
-                  </td>
-                </tr>
-
-                <!-- Body -->
-                <tr>
-                  <td align="center" style="padding-bottom:32px;">
-                    <p style="margin:0;font-size:15px;color:#8b8fa8;line-height:1.6;max-width:360px;">
-                      Usa el botón a continuación para establecer tu contraseña y acceder a la app.
-                    </p>
-                  </td>
-                </tr>
-
-                <!-- CTA -->
-                <tr>
-                  <td align="center" style="padding-bottom:32px;">
-                    <a href="%LINK%"
-                       style="display:inline-block;background:linear-gradient(135deg,#6c63ff,#a78bfa);color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;padding:14px 36px;border-radius:12px;letter-spacing:0.2px;">
-                      Configurar mi contraseña
-                    </a>
-                  </td>
-                </tr>
-
-                <!-- Divider -->
-                <tr>
-                  <td style="border-top:1px solid #2a2d3a;padding-top:24px;padding-bottom:16px;">
-                    <p style="margin:0;font-size:13px;color:#555870;line-height:1.5;text-align:center;">
-                      Si no esperabas este correo, puedes ignorarlo.<br>
-                      El enlace expira en <strong style="color:#8b8fa8;">1 hora</strong>.
-                    </p>
-                  </td>
-                </tr>
-
-                <!-- Fallback link -->
-                <tr>
-                  <td style="padding-top:4px;">
-                    <p style="margin:0;font-size:12px;color:#3d4055;text-align:center;line-height:1.5;">
-                      Si el botón no funciona, copia este enlace:<br>
-                      <span style="color:#6c63ff;word-break:break-all;">%LINK%</span>
-                    </p>
-                  </td>
-                </tr>
-
-              </table>
-            </td>
-          </tr>
-
-          <!-- Footer -->
-          <tr>
-            <td align="center" style="padding-top:28px;">
-              <p style="margin:0;font-size:12px;color:#3d4055;">
-                NegocioApp &nbsp;·&nbsp; Sistema de gestión de negocio
-              </p>
-            </td>
-          </tr>
-
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>
-```
-
----
-
-## Cómo aplicar en Firebase Console
-
-1. Ir a [console.firebase.google.com](https://console.firebase.google.com) → proyecto `proyecto-app-negocio`
-2. **Authentication → Templates** (ícono de sobre)
-3. Seleccionar **"Restablecimiento de contraseña"**
-4. Clic en el ícono de editar (lápiz)
-5. Cambiar **Nombre del remitente** a `NegocioApp`
-6. Cambiar el **Asunto** al texto de arriba
-7. Activar la opción **"Personalizar plantilla de acción"** y pegar la URL: `https://proyecto-app-negocio.web.app/recuperar`
-8. En el cuerpo, borrar el HTML existente y pegar el de arriba
-9. Guardar
-
----
-
-## Configurar remitente personalizado (opcional, requiere dominio propio)
-
-Para que el email llegue desde `hola@tudominio.com` en vez de `noreply@...firebaseapp.com`:
-
-1. Firebase Console → Authentication → Templates → clic en **"Personalizar dominio de correo"**
-2. Agregar el dominio y verificar los registros DNS que Firebase indica (SPF, DKIM)
-3. Una vez verificado, Firebase envía desde ese dominio
-
-Sin dominio propio, el remitente seguirá siendo el de Firebase y es funcional — solo menos branded.
