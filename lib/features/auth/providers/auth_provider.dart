@@ -129,7 +129,13 @@ class AuthNotifier extends AsyncNotifier<void> {
 
   Future<void> sendPasswordReset(String email) async {
     await _auth.setLanguageCode('es');
-    await _auth.sendPasswordResetEmail(email: email.trim());
+    await _auth.sendPasswordResetEmail(
+      email: email.trim(),
+      actionCodeSettings: ActionCodeSettings(
+        url: 'https://proyecto-app-negocio.web.app/recuperar',
+        handleCodeInApp: true,
+      ),
+    );
   }
 
   Future<void> changePassword(String current, String newPassword) async {
@@ -331,7 +337,13 @@ class AuthNotifier extends AsyncNotifier<void> {
         'createdAt': FieldValue.serverTimestamp(),
       });
       await _auth.setLanguageCode('es');
-      await _auth.sendPasswordResetEmail(email: emailLc);
+      await _auth.sendPasswordResetEmail(
+        email: emailLc,
+        actionCodeSettings: ActionCodeSettings(
+          url: 'https://proyecto-app-negocio.web.app/recuperar',
+          handleCodeInApp: true,
+        ),
+      );
     }
   }
 

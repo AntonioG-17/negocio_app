@@ -48,6 +48,7 @@ flutter run -d chrome
 
 - [Arquitectura del proyecto](docs/architecture.md)
 - [Configuración de Firebase](docs/firebase-setup.md)
+- [Templates de email](docs/email-templates.md)
 
 ## Estructura
 
