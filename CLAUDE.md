@@ -180,7 +180,7 @@ Firestore rechaza la query). `firebase.json` tiene la sección `firestore`.
 - "Nuevo negocio" solo pide el nombre (sin creación de admin obligatoria)
 - Tarjeta de negocio es tappeable → entra al **CEO Preview** del negocio
 
-## Autenticación — plan por etapas (en progreso)
+## Autenticación — plan por etapas (completado)
 
 Objetivo: 1 credencial por persona (correo real), recuperación de contraseña,
 y que una persona pueda pertenecer a varios negocios con distinto rol.
@@ -191,8 +191,10 @@ y que una persona pueda pertenecer a varios negocios con distinto rol.
   mantiene sus credenciales reales actuales (no se tocó). Casos que no puedan
   recuperar → reset manual desde la consola de Firebase.
 - **Etapa 2 (HECHA):** modelo de **membresías** (persona ↔ negocio ↔ rol).
-- **Etapa 3 (PENDIENTE):** **cerrar reglas de Firestore** (hoy abiertas) según
-  membresías; el CEO ve todo.
+- **Etapa 3 (HECHA):** **reglas de Firestore cerradas** — requieren usuario autenticado
+  para todo acceso. Negocios: solo el CEO puede crear/editar/borrar. Paths no
+  mapeados deniegan por defecto. Pendiente futuro: aislamiento por negocio vía índice
+  de membresía (worker de A no puede leer B por API), marcado como follow-up.
 
 ## Modelo de membresías (Etapa 2)
 
@@ -264,7 +266,29 @@ nuevos pop-ups.
   deuda negativa.
 - El sobrepago de fiado está validado en la UI (no puede superar la deuda).
 
+## Página branded /recuperar
+
+Ruta pública `/recuperar` (sin sesión) que recibe el link de Firebase para reset
+de contraseña e invitaciones. Muestra logo + colores de la app en español, en vez
+de la página genérica de Firebase.
+
+- Lee `mode` + `oobCode` de la query URL, verifica con `verifyPasswordResetCode` y
+  confirma con `confirmPasswordReset`. Estados: verificando / formulario / listo /
+  link inválido o expirado.
+- Aplica tanto para recuperación de contraseña como para el link de invitación a
+  trabajadores nuevos.
+- **Requiere una vez en Firebase Console:** en la plantilla de reset de contraseña,
+  establecer la "URL de acción personalizada" a
+  `https://proyecto-app-negocio.web.app/recuperar`.
+
+## "Cambiar negocio" en dashboard
+
+- Para usuarios con 2+ membresías: opción "Cambiar negocio" en el menú del dashboard.
+- Limpia el negocio activo y la membresía seleccionada → vuelve a la pantalla de
+  selección de negocio (estilo CEO).
+
 ## Por implementar
 
-- CEO preview mode: navegar cualquier negocio en modo lectura (ver ventas + inventario, descargar Excel)
-- Al entrar al negocio desde CEO panel: poder agregar admin/trabajadores a ese negocio
+- Aislamiento por negocio en reglas Firestore: que un worker del negocio A no pueda
+  leer datos del negocio B vía API directa (requiere índice de membresía por uid).
+- Desde CEO panel → panel de equipo del negocio: agregar admin/trabajadores directamente.
