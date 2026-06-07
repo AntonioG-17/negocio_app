@@ -1,23 +1,47 @@
 {
     "name": "NegocioApp",
     "short_name": "NegocioApp",
-    "start_url": ".",
+    "description": "Dashboard, inventario y punto de venta para tu negocio",
+    "start_url": "/",
+    "scope": "/",
     "display": "standalone",
+    "display_override": ["standalone", "minimal-ui"],
     "background_color": "#0F1117",
-    "theme_color": "#0F1117",
-    "description": "Inventario y ventas para tu negocio",
+    "theme_color": "#7C6EF7",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
+    "lang": "es",
+    "dir": "ltr",
+    "categories": ["business", "finance", "productivity"],
+    "screenshots": [],
+    "shortcuts": [
+        {
+            "name": "Punto de Venta",
+            "short_name": "Vender",
+            "description": "Abrir el punto de venta",
+            "url": "/pos",
+            "icons": [{ "src": "icons/Icon-192.png", "sizes": "192x192" }]
+        },
+        {
+            "name": "Inventario",
+            "short_name": "Inventario",
+            "description": "Ver y gestionar productos",
+            "url": "/inventory",
+            "icons": [{ "src": "icons/Icon-192.png", "sizes": "192x192" }]
+        }
+    ],
     "icons": [
         {
             "src": "icons/Icon-192.png",
             "sizes": "192x192",
-            "type": "image/png"
+            "type": "image/png",
+            "purpose": "any"
         },
         {
             "src": "icons/Icon-512.png",
             "sizes": "512x512",
-            "type": "image/png"
+            "type": "image/png",
+            "purpose": "any"
         },
         {
             "src": "icons/Icon-maskable-192.png",

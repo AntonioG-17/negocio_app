@@ -198,6 +198,12 @@ class AuthNotifier extends AsyncNotifier<void> {
     if (prof.businessId == null) return;
     if (prof.role != UserRole.admin && prof.role != UserRole.worker) return;
 
+    // Añadir businessId al array del perfil para que las Firestore rules puedan
+    // verificar pertenencia sin necesitar Cloud Functions.
+    await _db.collection(AppConstants.colUsers).doc(user.uid).update({
+      'businessIds': FieldValue.arrayUnion([prof.businessId!]),
+    });
+
     await _db.collection(AppConstants.colMemberships).add(Membership.toMap(
           email: email,
           name: prof.name,
@@ -313,11 +319,13 @@ class AuthNotifier extends AsyncNotifier<void> {
     // 1) Asegurar la cuenta PRIMERO (así no queda una membresía huérfana si la
     // creación de cuenta falla por un motivo inesperado).
     String? newUid;
+    bool existingAccount = false;
     try {
       newUid = await _createFirebaseUser(
           emailLc, 'Tmp${DateTime.now().millisecondsSinceEpoch}A1!');
     } on FirebaseAuthException catch (e) {
       if (e.code != 'email-already-in-use') rethrow;
+      existingAccount = true;
       // Ya tiene cuenta → solo se vincula (no hace falta crear nada).
     }
 
@@ -330,13 +338,14 @@ class AuthNotifier extends AsyncNotifier<void> {
           isActive: true,
         ));
 
-    // 3) Si la cuenta es nueva: perfil con el nombre + link para que ponga su
-    // propia contraseña.
+    // 3a) Cuenta nueva: crear perfil + enviar link de contraseña.
     if (newUid != null) {
       await _db.collection(AppConstants.colUsers).doc(newUid).set({
         'email': emailLc,
         'name': name.trim(),
         'createdAt': FieldValue.serverTimestamp(),
+        // Array usado por las Firestore rules para aislar datos por negocio.
+        'businessIds': [businessId],
       });
       await _auth.setLanguageCode('es');
       await _auth.sendPasswordResetEmail(
@@ -346,6 +355,21 @@ class AuthNotifier extends AsyncNotifier<void> {
           handleCodeInApp: true,
         ),
       );
+    }
+
+    // 3b) Cuenta existente vinculada a otro negocio: agregar este businessId
+    // a su array para que las Firestore rules lo reconozcan.
+    if (existingAccount) {
+      final existing = await _db
+          .collection(AppConstants.colUsers)
+          .where('email', isEqualTo: emailLc)
+          .limit(1)
+          .get();
+      if (existing.docs.isNotEmpty) {
+        await existing.docs.first.reference.update({
+          'businessIds': FieldValue.arrayUnion([businessId]),
+        });
+      }
     }
   }
 
