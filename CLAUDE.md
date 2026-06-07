@@ -5,7 +5,7 @@ App de inventario y dashboard para negocio físico, desplegada como **PWA web** 
 **URL live:** https://proyecto-app-negocio.web.app  
 **GitHub:** https://github.com/AntonioG-17/negocio_app  
 **Carpeta local:** `/Users/antonioquilodrangeldes/Desktop/Carpeta Idea Proyectos/negocio_app/`  
-**Versión actual:** v1.3.3
+**Versión actual:** v1.4.0
 
 ## Stack
 
@@ -304,8 +304,41 @@ de la página genérica de Firebase.
 - `_ManualSearchSheet`: empty state con mensaje cuando inventario vacío o sin resultados.
 - Admin panel: validación de email con regex (requiere TLD) en formulario de invitación.
 
+## Production hardening v1.4.0 (aplicado)
+
+**Security headers (firebase.json):**
+- `Content-Security-Policy`: scripts/estilos/conexiones solo a orígenes conocidos
+  (Firebase, Google Fonts, self). `frame-ancestors: none` previene clickjacking.
+- `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `X-XSS-Protection`
+- `Referrer-Policy: strict-origin-when-cross-origin`
+- `Permissions-Policy`: bloquea geolocation, microphone, payment
+- `Strict-Transport-Security`: HSTS con preload, max-age=1 año
+- Cache: `immutable` para assets versionados, `no-cache` para HTML/SW/manifest
+
+**Firestore RLS — aislamiento real por negocio:**
+- `canAccessBusiness()` lee `users/{uid}.businessIds` (array) y verifica `hasAny()`
+  — un worker del negocio A no puede leer datos del negocio B vía API directa.
+- `users/{uid}`: solo el propio usuario o CEO puede leer/escribir su perfil.
+- `memberships`: cada usuario solo lee sus propias membresías (por email).
+- `sales` y `fiado_payments`: append-only para no-CEO (sin update/delete — integridad contable).
+- `sales.create`: valida `userId == request.auth.uid` server-side.
+- `auth_provider.dart`: mantiene `businessIds` array en `users/{uid}` al invitar
+  y al migrar cuentas legacy, para que las reglas funcionen inmediatamente.
+
+**main.dart:**
+- Firestore offline persistence: cache ilimitado, funciona sin internet.
+- Firebase Performance Monitoring: gratuito, trazas automáticas de red y Firestore.
+- Orientación fija portrait-only.
+
+**manifest.json:**
+- PWA shortcuts: acceso directo a POS e inventario desde la pantalla de inicio.
+- `categories`, `lang`, `dir`, `display_override` agregados.
+- `theme_color` actualizado al púrpura de la marca (#7C6EF7).
+
+**Build:** `flutter build web --release --no-source-maps` (sin source maps en producción).
+
 ## Por implementar
 
-- Aislamiento por negocio en reglas Firestore: que un worker del negocio A no pueda
-  leer datos del negocio B vía API directa (requiere índice de membresía por uid).
 - Desde CEO panel → panel de equipo del negocio: agregar admin/trabajadores directamente.
+- Aislamiento de escritura en membresías: solo admins del negocio pueden invitar
+  (actualmente validado solo en cliente; requiere Cloud Function para server-side).
