@@ -2,7 +2,7 @@ name: negocio_app
 description: "Dashboard e inventario profesional para negocios fisicos."
 publish_to: 'none'
 
-version: 1.0.0+1
+version: 1.3.3+4
 
 environment:
   sdk: ^3.12.0

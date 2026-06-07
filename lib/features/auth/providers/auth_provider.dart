@@ -42,18 +42,20 @@ final isCeoEmailProvider = Provider<bool>((ref) {
 });
 
 // Membresías activas del usuario (por correo). Decide 0 / 1 / 2+ negocios.
-final userMembershipsProvider = FutureProvider<List<Membership>>((ref) async {
+// StreamProvider para detectar en tiempo real si el admin desactiva al usuario
+// o elimina su membresía — el router los expulsará automáticamente.
+final userMembershipsProvider = StreamProvider<List<Membership>>((ref) {
   final user = ref.watch(authStateProvider).valueOrNull;
   final email = user?.email?.toLowerCase();
-  if (email == null) return [];
-  if (email == AppConstants.ceoEmail.toLowerCase()) return []; // CEO no usa membresías
-  final snap = await ref
+  if (email == null) return const Stream.empty();
+  if (email == AppConstants.ceoEmail.toLowerCase()) return const Stream.empty();
+  return ref
       .watch(firestoreProvider)
       .collection(AppConstants.colMemberships)
       .where('email', isEqualTo: email)
       .where('isActive', isEqualTo: true)
-      .get();
-  return snap.docs.map(Membership.fromFirestore).toList();
+      .snapshots()
+      .map((snap) => snap.docs.map(Membership.fromFirestore).toList());
 });
 
 // Negocios para el menú de selección (los de las membresías del usuario).

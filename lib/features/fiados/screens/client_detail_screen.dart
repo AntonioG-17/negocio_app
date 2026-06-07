@@ -19,10 +19,43 @@ class ClientDetailScreen extends ConsumerWidget {
     final payments = ref.watch(clientPaymentsProvider(clientId));
     final isCeoPreview = ref.watch(isCeoPreviewProvider);
 
+    // Si el stream ya cargó pero el cliente no existe, fue eliminado.
+    final clientsAsync = ref.watch(clientsStreamProvider);
     if (client == null) {
+      if (clientsAsync.isLoading) {
+        return Scaffold(
+          appBar: AppBar(title: const Text('Cliente')),
+          body: const Center(child: CircularProgressIndicator()),
+        );
+      }
       return Scaffold(
         appBar: AppBar(title: const Text('Cliente')),
-        body: const Center(child: CircularProgressIndicator()),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.person_off_outlined,
+                    size: 64, color: AppTheme.onSurfaceMuted),
+                const SizedBox(height: 16),
+                Text('Cliente eliminado',
+                    style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 8),
+                const Text(
+                  'Este cliente ya no existe en el sistema.',
+                  style: TextStyle(color: AppTheme.onSurfaceMuted),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                OutlinedButton(
+                  onPressed: () => context.pop(),
+                  child: const Text('Volver'),
+                ),
+              ],
+            ),
+          ),
+        ),
       );
     }
 

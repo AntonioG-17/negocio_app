@@ -16,13 +16,15 @@ class POSScreen extends ConsumerStatefulWidget {
   ConsumerState<POSScreen> createState() => _POSScreenState();
 }
 
-class _POSScreenState extends ConsumerState<POSScreen> {
+class _POSScreenState extends ConsumerState<POSScreen>
+    with WidgetsBindingObserver {
   bool _isProcessingBarcode = false;
   final _scanBtnKey = GlobalKey();
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // Pre-arm the native HTML button so the very first tap goes directly to it.
     // Safari requires getUserMedia to be called from a genuine DOM click event.
     WidgetsBinding.instance.addPostFrameCallback((_) => _armScanTrigger());
@@ -30,9 +32,21 @@ class _POSScreenState extends ConsumerState<POSScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     hideScanTrigger();
     stopWebScanner();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      hideScanTrigger();
+      stopWebScanner();
+    } else if (state == AppLifecycleState.resumed) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _armScanTrigger());
+    }
   }
 
   void _armScanTrigger() {
@@ -218,7 +232,9 @@ class _CartTile extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(item.product.name,
-                      style: Theme.of(context).textTheme.bodyLarge),
+                      style: Theme.of(context).textTheme.bodyLarge,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
                   Text(formatCurrency(item.product.price),
                       style: const TextStyle(color: AppTheme.onSurfaceMuted)),
                 ],
@@ -432,7 +448,28 @@ class _ManualSearchSheetState extends ConsumerState<_ManualSearchSheet> {
               ),
             ),
             Expanded(
-              child: ListView.separated(
+              child: filtered.isEmpty
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(32),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.search_off,
+                                size: 48, color: AppTheme.onSurfaceMuted),
+                            const SizedBox(height: 12),
+                            Text(
+                              widget.products.isEmpty
+                                  ? 'No hay productos en el inventario'
+                                  : 'Sin resultados para "$_search"',
+                              style: const TextStyle(color: AppTheme.onSurfaceMuted),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  : ListView.separated(
                 controller: scrollCtrl,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 itemCount: filtered.length,

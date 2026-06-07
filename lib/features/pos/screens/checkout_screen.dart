@@ -393,7 +393,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               child: Column(
                 children: [
                   ...cart.map((item) => ListTile(
-                        title: Text(item.product.name),
+                        title: Text(item.product.name,
+                            maxLines: 1, overflow: TextOverflow.ellipsis),
                         subtitle: Text(
                             '${item.quantity} x ${formatCurrency(item.product.price)}'),
                         trailing: Text(

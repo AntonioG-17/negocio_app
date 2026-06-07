@@ -35,9 +35,29 @@ final routerProvider = Provider<GoRouter>((ref) {
   // re-evalúa el redirect vía refreshListenable.
   final refresh = ValueNotifier<int>(0);
   ref.listen(authStateProvider, (_, _) => refresh.value++);
-  ref.listen(userMembershipsProvider, (_, _) => refresh.value++);
   ref.listen(selectedBusinessProvider, (_, _) => refresh.value++);
   ref.listen(selectedMembershipProvider, (_, _) => refresh.value++);
+
+  // Cuando el stream de membresías cambia (ej. admin desactiva al worker),
+  // limpiar el negocio y membresía activos para que el router los expulse.
+  ref.listen(userMembershipsProvider, (prev, next) {
+    final prevList = prev?.valueOrNull;
+    final nextList = next.valueOrNull;
+    if (prevList == null || nextList == null) {
+      refresh.value++;
+      return;
+    }
+    final activeMembership = ref.read(selectedMembershipProvider);
+    if (activeMembership != null) {
+      final stillActive = nextList.any((m) => m.id == activeMembership.id);
+      if (!stillActive) {
+        ref.read(selectedBusinessProvider.notifier).state = null;
+        ref.read(selectedMembershipProvider.notifier).state = null;
+      }
+    }
+    refresh.value++;
+  });
+
   ref.onDispose(refresh.dispose);
 
   return GoRouter(

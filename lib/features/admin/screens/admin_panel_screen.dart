@@ -214,7 +214,8 @@ class _InviteWorkerSheetState extends ConsumerState<_InviteWorkerSheet> {
       setState(() => _error = 'Ingresa el nombre');
       return;
     }
-    if (!email.contains('@')) {
+    final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+    if (!emailRegex.hasMatch(email)) {
       setState(() => _error = 'Correo inválido');
       return;
     }

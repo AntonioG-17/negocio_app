@@ -7,11 +7,19 @@ import 'package:negocio_app/features/auth/providers/auth_provider.dart';
 
 // Menú de selección de negocio (estilo CEO): aparece cuando una persona está
 // vinculada a 2+ negocios. Toca un negocio → entra con su rol en ese negocio.
-class BusinessSelectScreen extends ConsumerWidget {
+class BusinessSelectScreen extends ConsumerStatefulWidget {
   const BusinessSelectScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<BusinessSelectScreen> createState() =>
+      _BusinessSelectScreenState();
+}
+
+class _BusinessSelectScreenState extends ConsumerState<BusinessSelectScreen> {
+  bool _selecting = false;
+
+  @override
+  Widget build(BuildContext context) {
     final items = ref.watch(userMenuBusinessesProvider);
     return Scaffold(
       appBar: AppBar(
@@ -40,12 +48,16 @@ class BusinessSelectScreen extends ConsumerWidget {
                   return Card(
                     child: InkWell(
                       borderRadius: BorderRadius.circular(16),
-                      onTap: () async {
-                        await ref
-                            .read(authNotifierProvider.notifier)
-                            .selectMembership(it.membership);
-                        if (context.mounted) context.go('/dashboard');
-                      },
+                      onTap: _selecting
+                          ? null
+                          : () async {
+                              setState(() => _selecting = true);
+                              await ref
+                                  .read(authNotifierProvider.notifier)
+                                  .selectMembership(it.membership);
+                              if (context.mounted) context.go('/dashboard');
+                              if (mounted) setState(() => _selecting = false);
+                            },
                       child: Padding(
                         padding: const EdgeInsets.all(16),
                         child: Row(

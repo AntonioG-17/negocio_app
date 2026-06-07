@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -81,14 +82,20 @@ class _AuthActionScreenState extends ConsumerState<AuthActionScreen> {
           .confirmPasswordReset(code: widget.oobCode!, newPassword: pass);
       if (!mounted) return;
       setState(() => _phase = _Phase.done);
-    } catch (e) {
+    } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      final m = e.toString();
       setState(() {
         _saving = false;
-        _error = m.contains('expired') || m.contains('invalid')
-            ? 'El enlace expiró. Pide uno nuevo.'
+        _error = (e.code == 'expired-action-code' ||
+                e.code == 'invalid-action-code')
+            ? 'El enlace expiró o ya se usó. Pide uno nuevo.'
             : 'No se pudo guardar. Intenta de nuevo.';
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        _error = 'No se pudo guardar. Intenta de nuevo.';
       });
     }
   }
