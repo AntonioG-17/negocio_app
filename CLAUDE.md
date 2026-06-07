@@ -4,7 +4,8 @@ App de inventario y dashboard para negocio físico, desplegada como **PWA web** 
 
 **URL live:** https://proyecto-app-negocio.web.app  
 **GitHub:** https://github.com/AntonioG-17/negocio_app  
-**Carpeta local:** `/Users/antonioquilodrangeldes/Desktop/Carpeta Idea Proyectos/negocio_app/`
+**Carpeta local:** `/Users/antonioquilodrangeldes/Desktop/Carpeta Idea Proyectos/negocio_app/`  
+**Versión actual:** v1.3.3
 
 ## Stack
 
@@ -286,6 +287,22 @@ de la página genérica de Firebase.
 - Para usuarios con 2+ membresías: opción "Cambiar negocio" en el menú del dashboard.
 - Limpia el negocio activo y la membresía seleccionada → vuelve a la pantalla de
   selección de negocio (estilo CEO).
+
+## Hardening v1.3.3 (aplicado)
+
+- `userMembershipsProvider`: `FutureProvider` → `StreamProvider` — workers desactivados
+  o removidos mid-session son expulsados en tiempo real sin relogin. El listener en
+  `app.dart` limpia `selectedBusiness/Membership` cuando la membresía activa desaparece.
+- `POSScreen`: `WidgetsBindingObserver` para detener el escáner al ir a segundo plano
+  y re-armarlo al volver (Safari iOS mantenía la cámara abierta en background).
+- `ClientDetailScreen`: pantalla "Cliente eliminado" en lugar de spinner infinito
+  cuando el documento del cliente fue borrado desde otro dispositivo.
+- `AuthActionScreen`: captura `FirebaseAuthException` por `.code` en lugar de
+  string matching frágil para distinguir links expirados vs errores genéricos.
+- `BusinessSelectScreen`: flag `_selecting` previene doble-tap al elegir negocio.
+- `_CartTile` / `CheckoutScreen`: `maxLines:1 + overflow:ellipsis` en nombres de producto.
+- `_ManualSearchSheet`: empty state con mensaje cuando inventario vacío o sin resultados.
+- Admin panel: validación de email con regex (requiere TLD) en formulario de invitación.
 
 ## Por implementar
 
