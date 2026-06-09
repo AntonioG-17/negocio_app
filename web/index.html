@@ -15,10 +15,19 @@
   <!-- iOS PWA -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <!-- black-translucent: la barra de estado es transparente, el contenido
+       de Flutter se extiende debajo de ella (viewport-fit=cover lo gestiona). -->
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="NegocioApp">
   <meta name="theme-color" content="#0F1117">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <!-- Deshabilitar detección automática de teléfonos/emails en iOS para
+       evitar que Safari subraye texto del app como si fueran links. -->
+  <meta name="format-detection" content="telephone=no, email=no, address=no">
+  <!-- Iconos iOS: el sistema elige el más cercano al tamaño necesario.
+       180x180 = iPhone retina (más común). Sin esto usa el de 192px del
+       manifest que funciona pero no es óptimo. -->
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/Icon-192.png">
+  <link rel="apple-touch-icon" sizes="192x192" href="icons/Icon-192.png">
   <link rel="apple-touch-icon" sizes="512x512" href="icons/Icon-512.png">
 
   <link rel="icon" type="image/png" href="favicon.png"/>
@@ -169,6 +178,9 @@
           }
         }
         localStorage.setItem('_app_version', version);
+        // Exponer la versión globalmente para que scanner_bridge.js pueda
+        // usar el mismo ?v= al cargar quagga bajo demanda (ensureQuagga).
+        window._appVersion = version;
 
         // Quagga2 carga en background (no bloquea el inicio de la app).
         // scanner_bridge.js se espera porque Dart llama sus funciones.
@@ -191,6 +203,7 @@
       } catch (e) {
         // Timeout o sin red: cargar desde caché (funciona offline).
         console.warn('Version check failed, loading from cache:', e.message || e);
+        window._appVersion = version;
         loadScript('quagga.min.js?v=' + version);
         await loadScript('scanner_bridge.js?v=' + version);
         const s = document.createElement('script');

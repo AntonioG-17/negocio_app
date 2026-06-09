@@ -132,7 +132,8 @@ class _NewBusinessSheetState extends ConsumerState<_NewBusinessSheet> {
       setState(() => _error = 'Ingresa el nombre del admin');
       return;
     }
-    if (!adminEmail.contains('@')) {
+    final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]{2,}$');
+    if (!emailRegex.hasMatch(adminEmail)) {
       setState(() => _error = 'Correo del admin inválido');
       return;
     }

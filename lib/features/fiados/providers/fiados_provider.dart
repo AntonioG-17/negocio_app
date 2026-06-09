@@ -73,28 +73,39 @@ class FiadosNotifier extends AsyncNotifier<void> {
   }) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      final payment = FiadoPayment(
-        id: _uuid.v4(),
-        clientId: clientId,
-        clientName: clientName,
-        businessId: _businessId,
-        amount: amount,
-        note: note?.isEmpty == true ? null : note,
-        createdAt: DateTime.now(),
-      );
-      final batch = _db.batch();
-      batch.set(
-        _db.collection(AppConstants.colPayments).doc(payment.id),
-        payment.toFirestore(),
-      );
-      batch.update(
-        _db.collection(AppConstants.colClients).doc(clientId),
-        {
+      // Transacción para evitar deuda negativa: re-lee la deuda real en el
+      // servidor antes de decrementar, y aborta si el pago la superaría.
+      await _db.runTransaction((txn) async {
+        final clientRef = _db.collection(AppConstants.colClients).doc(clientId);
+        final snap = await txn.get(clientRef);
+        if (!snap.exists) throw Exception('El cliente ya no existe');
+
+        final currentDebt =
+            ((snap.data() as Map<String, dynamic>)['totalDebt'] as num?)
+                ?.toDouble() ??
+                0.0;
+        if (amount > currentDebt + 0.01) {
+          throw Exception(
+              'El pago supera la deuda actual (${currentDebt.toStringAsFixed(0)})');
+        }
+
+        final paymentRef =
+            _db.collection(AppConstants.colPayments).doc(_uuid.v4());
+        final payment = FiadoPayment(
+          id: paymentRef.id,
+          clientId: clientId,
+          clientName: clientName,
+          businessId: _businessId,
+          amount: amount,
+          note: note?.isEmpty == true ? null : note,
+          createdAt: DateTime.now(),
+        );
+        txn.set(paymentRef, payment.toFirestore());
+        txn.update(clientRef, {
           'totalDebt': FieldValue.increment(-amount),
           'updatedAt': FieldValue.serverTimestamp(),
-        },
-      );
-      await batch.commit();
+        });
+      });
     });
   }
 

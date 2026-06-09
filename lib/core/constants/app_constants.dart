@@ -1,7 +1,7 @@
 class AppConstants {
   static const String appName = 'NegocioApp';
   // Versión visible al usuario.
-  static const String appVersion = 'v1.4.1';
+  static const String appVersion = 'v1.4.2';
   // Identificador interno de build (NO visible). Se sube cuando solo cambian
   // archivos web/ (p. ej. scanner_bridge.js) para forzar un serviceWorkerVersion
   // nuevo y que el navegador baje el archivo fresco sin cambiar appVersion.

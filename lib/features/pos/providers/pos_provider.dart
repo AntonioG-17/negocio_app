@@ -81,11 +81,15 @@ class POSNotifier extends AsyncNotifier<void> {
     required PaymentType paymentType,
     Client? client,
   }) async {
+    // Validar carrito ANTES de entrar en AsyncLoading para evitar que un
+    // refresh concurrente lo vacíe entre el seteo del estado y la lectura.
+    final cart = ref.read(cartProvider);
+    if (cart.isEmpty) {
+      state = AsyncError(Exception('El carrito está vacío'), StackTrace.current);
+      return;
+    }
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      final cart = ref.read(cartProvider);
-      if (cart.isEmpty) throw Exception('El carrito esta vacio');
-
       final items = cart
           .map((i) => SaleItem(
                 productId: i.product.id,

@@ -77,8 +77,16 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   String _friendlySaleError(Object? error) {
     if (error == null) return 'Error al registrar venta. Intenta nuevamente.';
     final msg = error.toString().replaceFirst('Exception: ', '');
-    if (msg.contains('Stock insuficiente') || msg.contains('ya no existe')) {
+    if (msg.contains('Stock insuficiente') ||
+        msg.contains('ya no existe') ||
+        msg.contains('carrito')) {
       return msg;
+    }
+    if (msg.contains('permission-denied') || msg.contains('PERMISSION_DENIED')) {
+      return 'Sin permisos para registrar la venta. Contacta al administrador.';
+    }
+    if (msg.contains('unavailable') || msg.contains('network')) {
+      return 'Sin conexión. Verifica tu internet e intenta de nuevo.';
     }
     return 'Error al registrar venta. Intenta nuevamente.';
   }
@@ -280,7 +288,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   String _paymentLabel(PaymentType t, String? clientName) => switch (t) {
         PaymentType.cash => 'Pago en efectivo',
         PaymentType.card => 'Pago con tarjeta',
-        PaymentType.fiado => 'Fiado a $clientName',
+        PaymentType.fiado =>
+          'Fiado a ${clientName?.isNotEmpty == true ? clientName : 'cliente'}',
       };
 
   void _selectClient() {

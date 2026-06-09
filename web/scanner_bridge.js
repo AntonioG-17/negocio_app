@@ -154,7 +154,10 @@
     if (window.Quagga) { cb(); return; }
     if (_debugEl) _debugEl.textContent = 'Cargando lector…';
     var s = document.createElement('script');
-    s.src = 'quagga.min.js';
+    // Usar el mismo ?v= que el bootstrap para no quedar pegado a una versión
+    // vieja del script cuando hay actualizaciones de la app.
+    var v = (window._appVersion || String(Date.now()));
+    s.src = 'quagga.min.js?v=' + v;
     s.onload = function () {
       if (window.Quagga) {
         cb();
