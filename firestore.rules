@@ -1,27 +1,17 @@
 rules_version = '2';
 
-// Reglas de seguridad de Firestore — NegocioApp v1.4.0
+// Reglas de seguridad de Firestore — NegocioApp v1.4.3
 //
-// Modelo de seguridad:
-// - Sin sesión → acceso denegado a todo.
-// - CEO (email hardcodeado) → lectura total, escritura plena en businesses.
-// - Admin/Worker → acceso solo a los negocios listados en users/{uid}.businessIds.
+// canAccessBusiness() verifica pertenencia en orden de precedencia:
+//   1. CEO → siempre pasa
+//   2. businessIds array (nuevo modelo) → si existe y contiene el businessId
+//   3. businessId string (modelo legacy) → fallback para cuentas existentes
+//      que aún no tienen el array (se puebla la próxima vez que se invita/migra)
 //
-// Aislamiento por negocio:
-//   users/{uid}.businessIds es un array mantenido por la app que lista todos
-//   los businessId a los que pertenece el usuario (se añade al invitar/migrar).
-//   Las reglas usan get() sobre ese documento para verificar pertenencia.
-//   Esto es seguro porque solo la app (autenticada) puede escribir ese campo,
-//   y las reglas de users/{uid} solo permiten escritura al propio usuario o CEO.
-//
-// Integridad contable:
-//   Sales y fiado_payments son append-only para no-CEO (no se pueden editar
-//   ni borrar una vez creados).
+// Esto evita que usuarios existentes queden bloqueados al actualizar las reglas.
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // ── Helpers ──────────────────────────────────────────────────────────────
 
     function signedIn() {
       return request.auth != null;
@@ -32,43 +22,39 @@ service cloud.firestore {
         && request.auth.token.email == 'antonio.geldes1701@gmail.com';
     }
 
-    // Verifica que el usuario tenga acceso al negocio dado.
-    // Lee users/{uid}.businessIds (array) y comprueba que businessId esté ahí.
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
     function canAccessBusiness(businessId) {
       return isCeo() || (
-        signedIn() &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid))
-          .data.get('businessIds', []).hasAny([businessId])
+        signedIn() && (
+          userDoc().get('businessIds', []).hasAny([businessId]) ||
+          userDoc().get('businessId', '') == businessId
+        )
       );
     }
 
     // ── Negocios ─────────────────────────────────────────────────────────────
 
     match /businesses/{businessId} {
-      // Cualquier sesión activa puede leer negocios (menú de selección, preview CEO).
       allow read: if signedIn();
-      // Solo el CEO crea, edita y borra negocios.
       allow create, update, delete: if isCeo();
     }
 
     // ── Perfiles de usuario ───────────────────────────────────────────────────
 
     match /users/{uid} {
-      // Cada usuario solo lee y escribe su propio perfil; el CEO puede leer todo.
-      allow read: if signedIn() && (request.auth.uid == uid || isCeo());
-      allow write: if signedIn() && (request.auth.uid == uid || isCeo());
+      allow read, write: if signedIn() && (request.auth.uid == uid || isCeo());
     }
 
     // ── Membresías ────────────────────────────────────────────────────────────
 
     match /memberships/{membershipId} {
-      // Cada usuario lee solo sus propias membresías (por email).
       allow read: if signedIn() && (
         isCeo() ||
         resource.data.email == request.auth.token.email
       );
-      // Escritura permitida si el usuario pertenece al negocio de la membresía.
-      // El rol (solo admins invitan) se valida en la app; aquí validamos pertenencia.
       allow write: if signedIn() && (
         isCeo() ||
         canAccessBusiness(request.resource.data.businessId)
@@ -89,14 +75,12 @@ service cloud.firestore {
 
     match /sales/{saleId} {
       allow read:   if canAccessBusiness(resource.data.businessId);
-      // Al crear: el userId debe corresponder al usuario autenticado.
       allow create: if canAccessBusiness(request.resource.data.businessId)
                     && request.resource.data.userId == request.auth.uid;
-      // Las ventas no se editan ni borran (integridad contable).
       allow update, delete: if isCeo();
     }
 
-    // ── Clientes (fiados) ─────────────────────────────────────────────────────
+    // ── Clientes ─────────────────────────────────────────────────────────────
 
     match /clients/{clientId} {
       allow read:   if canAccessBusiness(resource.data.businessId);
@@ -110,11 +94,10 @@ service cloud.firestore {
     match /fiado_payments/{paymentId} {
       allow read:   if canAccessBusiness(resource.data.businessId);
       allow create: if canAccessBusiness(request.resource.data.businessId);
-      // Los pagos no se editan ni borran (integridad contable).
       allow update, delete: if isCeo();
     }
 
-    // ── Catch-all: denegar todo lo demás ─────────────────────────────────────
+    // ── Catch-all ─────────────────────────────────────────────────────────────
 
     match /{document=**} {
       allow read, write: if false;
