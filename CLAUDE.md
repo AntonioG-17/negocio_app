@@ -5,123 +5,175 @@ App de inventario y dashboard para negocio físico, desplegada como **PWA web** 
 **URL live:** https://proyecto-app-negocio.web.app  
 **GitHub:** https://github.com/AntonioG-17/negocio_app  
 **Carpeta local:** `/Users/antonioquilodrangeldes/Desktop/Carpeta Idea Proyectos/negocio_app/`  
-**Versión actual:** v1.4.0
+**Versión actual:** v1.4.5  
+**Firebase project:** `proyecto-app-negocio`
 
 ## Stack
 
-Flutter 3.44 + Firebase (Firestore + Auth) + Riverpod + go_router + mobile_scanner v7
+Flutter 3.44 + Firebase (Firestore + Auth + Hosting) + Riverpod + go_router + Quagga2
 
 ## Despliegue
 
-La app corre como PWA web (instalada en iPhone desde Safari → "Agregar a pantalla de inicio").
-
 ```bash
-flutter build web --release && firebase deploy --only hosting
+flutter build web --release --no-source-maps && firebase deploy
 ```
 
-Firebase project: `proyecto-app-negocio`
-
-## Auto-actualización (el usuario NO debe refrescar ni reinstalar nada)
-
-`web/index.html` tiene un loader que hace updates 100% automáticos:
-- Cada build de Flutter genera un `serviceWorkerVersion` nuevo.
-- Al abrir, el loader baja `flutter_bootstrap.js` con URL única (`?_=timestamp`,
-  `cache:'no-store'`) → siempre ve la versión real de la red.
-- Si la versión cambió: borra todos los caches (Cache Storage), desregistra el
-  Service Worker, guarda la versión nueva y hace `location.reload()` UNA vez
-  (guardado en `sessionStorage._reloaded_for` para no entrar en loop).
-- **Clave:** todos los scripts se cargan con `?v=<version>` (incluido
-  `quagga.min.js` y `scanner_bridge.js`). Sin esto, el header `immutable` de
-  `firebase.json` (`max-age=31536000`) cachea los `.js` de nombre fijo por 1 año
-  y el usuario queda pegado en código viejo. Borrar el Cache Storage NO limpia
-  el caché HTTP del disco; solo una URL nueva (`?v=`) lo busta.
-
-**Si alguna vez queda pegado en una versión vieja** (p.ej. tras cambiar este
-loader): una sola vez, quitar la PWA de la pantalla de inicio y volver a
-agregarla (limpia el caché HTTP del disco). De ahí en adelante es automático.
+La app se instala como PWA desde Safari iOS → "Agregar a pantalla de inicio".  
+Se actualiza automáticamente — el usuario nunca tiene que reinstalar ni refrescar.
 
 ## Sistema de roles
 
 | Rol | Acceso | Creado por |
 |-----|--------|------------|
-| **CEO** | Panel CEO: crear negocios + admins | Auto-detectado por email |
-| **Admin** | Todo: dashboard (todas ventas), inventario, fiados, reportes, panel equipo | CEO |
+| **CEO** | Panel CEO: crear negocios + admins, ver cualquier negocio en modo lectura | Email hardcodeado |
+| **Admin** | Dashboard (todas las ventas), inventario, POS, fiados, reportes, panel equipo | CEO |
 | **Trabajador** | Dashboard (solo sus ventas) + POS | Admin |
 
 - CEO se detecta por email = `AppConstants.ceoEmail` (antonio.geldes1701@gmail.com)
-- En el primer login del CEO, se crea el perfil automáticamente en `users/{uid}`
-- Admin/Worker: al login, su negocio se auto-carga desde `users/{uid}.businessId`
 - No hay registro público. Solo login.
 
 ## Firestore collections
 
-- `users/{uid}` — perfil con role + businessId
-- `businesses/{id}` — negocios
-- `products/{id}` — inventario (por businessId)
-- `sales/{id}` — ventas (por businessId + userId)
-- `clients/{id}` — fiados
-- `fiado_payments/{id}` — pagos de fiados
+```
+users/{uid}          → email, name, businessId (legacy), businessIds[], isActive
+businesses/{id}      → name, ownerId, createdAt
+memberships/{id}     → email, name, businessId, role, isActive, createdAt
+products/{id}        → businessId, name, barcode?, price, cost?, stock, minStock, hasBarcode
+sales/{id}           → businessId, userId, userName, items[], total, paymentType, clientId?, clientName?, createdAt
+clients/{id}         → businessId, name, phone?, totalDebt
+fiado_payments/{id}  → clientId, clientName, businessId, amount, note?, createdAt
+```
 
 ## Cuenta CEO
 
 - **Email:** antonio.geldes1701@gmail.com (ya existe en Firebase Auth)
 - **UID:** hvWgAvCj53YoFsQn4Yl31UhKrG73
-- El perfil CEO se crea automáticamente en el primer login (no había perfil antes)
-- Base de datos limpiada (slate limpio, sin datos demo)
+- El perfil CEO se crea automáticamente en el primer login
 
 ## Scanner de código de barras (web/PWA en Safari iOS)
 
-**Motor:** Quagga2 (`web/quagga.min.js`, bundleado local), NO html5-qrcode/ZXing.
-ZXing falla decodificando códigos 1D borrosos/en ángulo en Safari iOS; Quagga2
-está hecho para 1D (EAN/UPC/Code128/39) y tolera mucho mejor imágenes imperfectas.
+**Motor:** Quagga2 (`web/quagga.min.js`, bundleado local).
 
 **Arquitectura (bridge JS ↔ Dart):**
-- `web/scanner_bridge.js` — overlay full-screen, init de Quagga, beep + vibración
-  al detectar, línea de mira roja, hint de distancia (~15 cm).
-- `lib/core/scanner/web_scanner_bridge.dart` — bindings `dart:js_interop`:
-  `showScanTrigger` / `hideScanTrigger` / `startWebScanner` / `stopWebScanner`.
-- `web/index.html` carga `quagga.min.js` + `scanner_bridge.js`.
+- `web/scanner_bridge.js` — overlay full-screen, init Quagga, beep + vibración, línea de mira
+- `lib/core/scanner/web_scanner_bridge.dart` — bindings `dart:js_interop`
 
-**Truco clave para iOS (getUserMedia exige gesto DOM real):**
-`showScanTrigger(x,y,w,h,...)` coloca un `<button>` HTML transparente EXACTAMENTE
-encima del botón Flutter de escanear. Se pre-arma en `initState` (POS) o al activar
-el switch de código de barras (inventario), así el PRIMER toque va directo al botón
-HTML y Safari reconoce el gesto. El `AudioContext` del beep se prepara en ese click.
+**Truco clave para iOS:** `showScanTrigger` coloca un `<button>` HTML transparente encima del botón Flutter. El primer toque va al elemento HTML y Safari reconoce el gesto para `getUserMedia`.
 
-**Config Quagga relevante:** `numOfWorkers: 0` (single-thread, evita worker-blobs
-que rompen en Safari), `halfSample: true`, `patchSize: 'medium'`, `area` central,
-resolución `1280x720 ideal`, rechazo de lecturas con `avgError > 0.20`.
+**Config Quagga:** `numOfWorkers: 0` (single-thread, evita worker-blobs que rompen en Safari), `halfSample: true`, rechazo de lecturas con `avgError > 0.20`.
 
 **Pantallas que escanean:** POS (`pos_screen.dart`) e inventario (`product_form_screen.dart`).
 
+**Lifecycle:** `POSScreen` implementa `WidgetsBindingObserver` — detiene la cámara al ir a segundo plano y la re-arma al volver.
+
 ## Módulos implementados
 
-- Auth: solo login (sin registro público)
-- Dashboard: ventas del día filtradas por rol
-- Inventario: CRUD productos + escaneo
-- POS: escaneo + búsqueda + carrito + checkout
-- Fiados: clientes + historial + pagos
-- Reportes: gráficos semana/mes/año + exportar Excel
-- CEO Panel: crear negocios + admins
-- Admin Panel: crear/remover trabajadores
+- Auth: login, recuperación de contraseña, membresías multi-negocio, cambio de contraseña
+- Dashboard: ventas del día filtradas por rol, alertas de stock bajo, fiados pendientes
+- Inventario: CRUD productos + escaneo, validación de código de barras único
+- POS: escaneo + búsqueda + carrito + checkout (efectivo con vuelto, fiado)
+- Fiados: clientes + historial + pagos (transacción segura, deuda nunca negativa)
+- Reportes: gráficos semana/mes/año + exportar Excel (4 hojas)
+- CEO Panel: crear negocios + admins, vista preview modo lectura de cualquier negocio
+- Admin Panel: crear/remover/activar-desactivar trabajadores
+- Página branded `/recuperar`: reset password + invitaciones (sin diseño de Firebase)
 
 ## Permisos por rol — Inventario
 
 | Acción | CEO | Admin | Trabajador |
 |--------|-----|-------|------------|
-| Ver inventario | - | ✓ | ✓ (solo lectura) |
-| Agregar producto | - | ✓ | ✗ |
-| Editar/eliminar producto | - | ✓ | ✗ |
+| Ver inventario | preview | ✓ | ✓ (solo lectura) |
+| Agregar producto | — | ✓ | ✗ |
+| Editar/eliminar producto | — | ✓ | ✗ |
 
-- Trabajadores ven el tab Inventario pero no tienen FAB ni pueden tocar los tiles para editar
-- Router bloquea `/inventory/add` y `/inventory/edit/*` para workers → redirige a `/inventory`
+## Modelo de membresías
 
-## Historial de ventas — campo userName
+Colección `memberships`: `{ email(minúsculas), name, businessId, role(admin|worker), isActive, createdAt }`.
 
-- `Sale` tiene campo `userName?: String` guardado en Firestore al crear cada venta
-- `POSNotifier._userName` lee `userProfileProvider.valueOrNull?.name` al hacer checkout
-- El Excel de reportes incluye columna **Trabajador** en la hoja "Ventas"
-- Ventas antiguas (anteriores a este cambio) mostrarán '-' en esa columna
+- `userMembershipsProvider`: **StreamProvider** — membresías activas en tiempo real. Si el admin desactiva a un worker mid-session, el router lo expulsa automáticamente.
+- Al invitar: si el correo no tiene cuenta, se crea con clave temporal + se envía link de recuperación.
+- `users/{uid}.businessIds[]`: array mantenido automáticamente al invitar/migrar, usado por Firestore rules para aislamiento.
+- Migración legacy: `_migrateLegacyMembership` convierte `users/{uid}.businessId+role` al modelo nuevo (idempotente).
+
+## CEO Preview (modo solo lectura)
+
+El CEO toca un negocio → entra en modo lectura (dashboard, inventario, fiados, reportes). Sin POS, sin FAB, sin editar. Salir con la flecha "atrás" del AppBar.
+
+## Checkout — pago en efectivo y vuelto
+
+- Efectivo: pide "¿Con cuánto paga?" con vuelto en vivo. Solo cobra si monto ≥ total.
+- Vuelto se muestra en diálogo de éxito que no se cierra solo.
+- Transacción Firestore: re-lee stock real, aborta si insuficiente → nunca stock negativo.
+- Carrito validado antes de `AsyncLoading` para evitar race condition con carrito vacío.
+
+## Fiados — integridad de deuda
+
+- `addPayment` usa transacción Firestore que re-lee la deuda real antes de decrementar.
+- Si el pago supera la deuda actual, aborta con mensaje claro → deuda nunca negativa.
+- `clientName` denormalizado en pagos → historial sobrevive si se borra el cliente.
+
+## Convención de pop-ups (UX)
+
+Todos los diálogos y bottom sheets: `barrierDismissible: false`, `isDismissible: false`, `enableDrag: false`. Solo se cierran con sus botones internos.
+
+## Guardas contra doble-submit
+
+Checkout y registro de pago usan flag síncrono (`_submitting`/`paying`) seteado ANTES del primer `await`. Sin esto, doble-tap rápido duplica la venta.
+
+## Auto-actualización PWA
+
+`web/index.html` actualiza la app automáticamente:
+1. Baja `flutter_bootstrap.js?_=timestamp` (sin caché) con timeout de 8s (15s en conexión lenta)
+2. Si versión cambió: limpia caches y Service Worker, carga versión nueva sin recargar
+3. Scripts con `?v=<version>` para bustar el caché HTTP de disco
+4. Watchdog de 45s: si Flutter no renderiza, limpia caché una vez y recarga (era 12s — muy corto para CanvasKit.wasm en 3G)
+5. Hint visible de "Conexión lenta" tras 8s sin que cargue
+
+## Offline
+
+`FirebaseFirestore.instance.settings` con `persistenceEnabled: true` y caché ilimitado. La app carga y muestra datos aunque no haya internet; sincroniza al volver la conexión. Envuelto en try-catch por si el navegador bloquea IndexedDB (modo privado).
+
+## Rendimiento — lecturas server-side
+
+Ventas y pagos filtrados por fecha en el servidor:
+- `sales`: índice `businessId ASC + createdAt DESC`
+- `fiado_payments`: índice `businessId ASC + createdAt DESC`
+
+## Integridad de datos
+
+- **Código de barras único**: `product_form` valida localmente contra `productsStreamProvider`
+- **Stock sin sobreventa**: transacción Firestore en checkout re-lee stock real
+- **Deuda nunca negativa**: transacción Firestore en `addPayment` re-lee deuda real
+- **Ventas append-only**: Firestore rules prohíben update/delete en `sales` y `fiado_payments` para no-CEO
+- **Sales.userId validado**: Firestore rules verifican `userId == request.auth.uid` en create
+
+## Firestore rules (estado actual)
+
+- Todo acceso requiere sesión (`signedIn()`)
+- Negocios: solo el CEO puede crear/editar/borrar
+- `users/{uid}`: solo el propio usuario o CEO puede leer/escribir
+- `memberships`: cada usuario solo lee las suyas (por email)
+- `sales` y `fiado_payments`: append-only para no-CEO
+- `sales.create`: valida `userId == request.auth.uid`
+- Default deny para paths no mapeados
+- **Pendiente**: aislamiento por negocio vía `businessIds` — las reglas tienen la función `canAccessBusiness()` lista pero se activará cuando todos los usuarios tengan el array poblado
+
+## Activación de trabajadores en tiempo real
+
+- `userMembershipsProvider` es `StreamProvider` → detecta cambios en tiempo real
+- Listener en `app.dart` limpia `selectedBusiness/Membership` si la membresía activa desaparece
+- Worker desactivado es expulsado automáticamente sin necesitar logout
+
+## Página branded /recuperar
+
+Ruta pública (`/recuperar`) para reset de contraseña e invitaciones. Usa `FirebaseAuthException.code` para distinguir links expirados vs errores genéricos.
+
+**Requiere una vez en Firebase Console:** plantilla de reset → URL de acción personalizada → `https://proyecto-app-negocio.web.app/recuperar`
+
+## Email templates
+
+Los templates HTML para Firebase Console están en `docs/email-templates.md`.  
+**Nota:** Firebase Spark (plan gratuito) no permite editar el cuerpo del email — solo nombre del remitente y asunto. El link siempre llega a `/recuperar` via `ActionCodeSettings` en el código.
 
 ## Excel — estructura actual
 
@@ -130,215 +182,8 @@ resolución `1280x720 ideal`, rechazo de lecturas con `avgError > 0.20`.
 **Hoja "Fiados":** Cliente, Teléfono, Deuda actual (solo deudores) + TOTAL POR COBRAR  
 **Hoja "Pagos fiados":** Fecha, Hora, Cliente, Monto, Nota (del periodo) + TOTAL PAGADO
 
-- Las hojas de fiados solo aparecen si hay datos. Se arman desde `reportClientsProvider`
-  y `reportFiadoPaymentsProvider`. El botón de exportar hoy se muestra si hay ventas en
-  el periodo (los fiados viajan junto al export).
-- Cada `FiadoPayment` guarda `clientName` denormalizado → el historial de pagos sobrevive
-  aunque se borre el cliente.
-
-## Rendimiento — lecturas server-side
-
-Las ventas y pagos se filtran por fecha en el SERVIDOR (no se descarga toda la
-colección y se filtra en el cliente, que se ponía lento/se congelaba al crecer):
-- `todaySalesProvider` (dashboard): `where(businessId).where(createdAt >= hoy).orderBy(createdAt desc)`
-- `reportSalesProvider` y `reportFiadoPaymentsProvider`: igual, por periodo.
-
-Esto requiere índices compuestos en Firestore, definidos en `firestore.indexes.json`
-y desplegados con `firebase deploy --only firestore:indexes`:
-- `sales`: businessId ASC + createdAt DESC
-- `fiado_payments`: businessId ASC + createdAt DESC
-
-Si agregas una query con `where(igualdad) + where(rango/otro campo)` o
-`where + orderBy(otro campo)`, añade el índice acá y vuelve a desplegar (si no,
-Firestore rechaza la query). `firebase.json` tiene la sección `firestore`.
-
-## Integridad de datos
-
-- **Código de barras único:** `product_form` valida antes de guardar que ningún otro
-  producto use el mismo código (si no, el escáner solo encontraría el primero).
-- **Stock sin sobreventa:** `POSNotifier.checkout` usa una transacción Firestore que
-  re-lee el stock real y aborta si el carrito supera lo disponible (mensaje específico
-  "Stock insuficiente de X (quedan N)"). Nunca queda stock negativo.
-
-## Activación de trabajadores
-
-- Campo `isActive: bool` en `users/{uid}` (default `true` al crear)
-- Admin puede activar/desactivar cada trabajador con un switch en el Panel Equipo
-- Si `isActive == false`:
-  - Login rechazado con error "Cuenta desactivada. Contacta al administrador"
-  - Si ya estaba dentro de la app: el router detecta el cambio en tiempo real via stream y cierra sesión automáticamente (microtask logout)
-- Trabajadores inactivos se ven en gris con chip "Inactivo" en el panel del admin
-- La lista de trabajadores muestra activos e inactivos (el admin ve a todos)
-
-## Ventas individuales por rol
-
-- Trabajadores: dashboard muestra solo sus propias ventas del día
-- Admin: dashboard muestra el total del día de TODO el negocio (todos los trabajadores + él mismo)
-- Cada venta en Firestore guarda `userId` + `userName` → el Excel refleja quién hizo cada venta
-
-## CEO Panel — flujo actual
-
-- "Nuevo negocio" solo pide el nombre (sin creación de admin obligatoria)
-- Tarjeta de negocio es tappeable → entra al **CEO Preview** del negocio
-
-## Autenticación — plan por etapas (completado)
-
-Objetivo: 1 credencial por persona (correo real), recuperación de contraseña,
-y que una persona pueda pertenecer a varios negocios con distinto rol.
-
-- **Etapa 1 (HECHA):** recuperación de contraseña por **correo**. Botón
-  "¿Olvidaste tu contraseña?" en el login → `AuthNotifier.sendPasswordReset`
-  (`FirebaseAuth.sendPasswordResetEmail`). Funciona para cualquier cuenta. El CEO
-  mantiene sus credenciales reales actuales (no se tocó). Casos que no puedan
-  recuperar → reset manual desde la consola de Firebase.
-- **Etapa 2 (HECHA):** modelo de **membresías** (persona ↔ negocio ↔ rol).
-- **Etapa 3 (HECHA):** **reglas de Firestore cerradas** — requieren usuario autenticado
-  para todo acceso. Negocios: solo el CEO puede crear/editar/borrar. Paths no
-  mapeados deniegan por defecto. Pendiente futuro: aislamiento por negocio vía índice
-  de membresía (worker de A no puede leer B por API), marcado como follow-up.
-
-## Modelo de membresías (Etapa 2)
-
-Colección `memberships`: `{ email(minúsculas), name, businessId, role(admin|worker),
-isActive, createdAt }`. La clave es el **correo** (no el uid) para poder vincular
-cuentas existentes e invitar sin conocer el uid. Todas las queries son de 2
-igualdades (email+isActive, businessId+role, email+businessId) → zigzag merge,
-**sin índices compuestos**.
-
-- `userMembershipsProvider`: membresías activas del correo logueado → 0 / 1 / 2+.
-- `selectedMembershipProvider`: la membresía elegida; de ahí sale el **rol** del
-  negocio activo. `currentUserRoleProvider` = CEO si el correo es el del CEO,
-  si no el rol de la membresía seleccionada.
-- **Login/refresh:** 0 → "sin negocio"; 1 → entra directo; 2+ → menú estilo CEO
-  (`business_select_screen`, tarjetas con el rol). `loadBusinessForCurrentUser`
-  migra cuentas legacy y auto-entra si hay una sola membresía.
-- **CEO:** cuenta especial por correo (`isCeoEmailProvider`), no usa membresías;
-  ve todos los negocios y entra a cualquiera en preview (solo lectura).
-- **Invitar por correo** (`inviteWorker` / `createBusinessWithAdmin` →
-  `_inviteToBusinessId`): crea la membresía; si el correo NO tiene cuenta, la
-  crea con clave aleatoria + manda link de recuperación para que ponga la suya;
-  si YA tiene cuenta (admin de otro negocio), solo se vincula.
-- **Migración:** `_migrateLegacyMembership` convierte el `users/{uid}.businessId+role`
-  viejo en una membresía, una sola vez (idempotente), en login y al recargar.
-- El panel de equipo (`admin_panel`) lista/gestiona **membresías** worker del
-  negocio (activar/desactivar, remover = borrar la membresía).
-
-## CEO Preview (modo solo lectura) — implementado
-
-El CEO toca un negocio en su panel y entra a verlo en **modo solo lectura**, para
-monitorear lo que hacen admins/trabajadores.
-
-- **Detección:** `isCeoPreviewProvider` = rol CEO + `selectedBusinessProvider != null`.
-  Al tocar un negocio se setea `selectedBusinessProvider` y se navega a `/dashboard`.
-- **Qué ve:** Dashboard, Inventario, Fiados y Reportes del negocio (barra de menú
-  CEO sin "Vender"). Puede descargar Excel y ver el historial por día.
-- **Solo lectura:** se ocultan TODAS las acciones de escritura — sin POS (vender),
-  sin FAB de agregar producto/cliente, sin editar productos, sin registrar pago,
-  sin eliminar cliente, sin panel de equipo.
-- **Salir:** flecha "atrás" en el AppBar del dashboard (título "Vista CEO") →
-  limpia `selectedBusinessProvider` y vuelve a `/ceo`.
-- **Router:** cuando el CEO está en preview, se permiten `/dashboard /inventory
-  /fiados /reports` (+ `/ceo`); se bloquean `/pos /inventory/add /inventory/edit
-  /admin-panel`. Sin negocio seleccionado, el CEO solo accede a `/ceo`.
-- Funciona porque las reglas de Firestore están abiertas (el CEO lee datos de
-  cualquier negocio); los providers ya consultan por `selectedBusiness.id`.
-
-## Checkout — pago en efectivo y vuelto
-
-- Al elegir "Efectivo" y confirmar, tras las validaciones se pide "¿Con cuánto paga?"
-  con cálculo de vuelto en vivo (botón "Pago justo" rellena el total). Solo se puede
-  "Cobrar" si el monto ≥ total.
-- El vuelto se muestra grande en el diálogo de éxito y NO se cierra solo: el botón dice
-  "Listo, vuelto entregado" para confirmar la entrega.
-
-## Convención de pop-ups (UX)
-
-TODOS los diálogos y bottom sheets son no-descartables tocando afuera
-(`barrierDismissible: false` en `showDialog`; `isDismissible: false` + `enableDrag: false`
-en `showModalBottomSheet`). Solo se cierran con sus botones internos. Las hojas de
-búsqueda/selección llevan un botón "Cerrar" visible. Mantener esta convención al agregar
-nuevos pop-ups.
-
-## Guardas contra doble-submit (operaciones de dinero)
-
-- Checkout (`_confirmSale`) y registro de pago usan un flag síncrono (`_submitting`/`paying`)
-  seteado ANTES del primer `await`, porque un doble-tap rápido dispara dos veces antes de
-  que el botón se redibuje deshabilitado → sin la guarda se duplicaba la venta / quedaba
-  deuda negativa.
-- El sobrepago de fiado está validado en la UI (no puede superar la deuda).
-
-## Página branded /recuperar
-
-Ruta pública `/recuperar` (sin sesión) que recibe el link de Firebase para reset
-de contraseña e invitaciones. Muestra logo + colores de la app en español, en vez
-de la página genérica de Firebase.
-
-- Lee `mode` + `oobCode` de la query URL, verifica con `verifyPasswordResetCode` y
-  confirma con `confirmPasswordReset`. Estados: verificando / formulario / listo /
-  link inválido o expirado.
-- Aplica tanto para recuperación de contraseña como para el link de invitación a
-  trabajadores nuevos.
-- **Requiere una vez en Firebase Console:** en la plantilla de reset de contraseña,
-  establecer la "URL de acción personalizada" a
-  `https://proyecto-app-negocio.web.app/recuperar`.
-
-## "Cambiar negocio" en dashboard
-
-- Para usuarios con 2+ membresías: opción "Cambiar negocio" en el menú del dashboard.
-- Limpia el negocio activo y la membresía seleccionada → vuelve a la pantalla de
-  selección de negocio (estilo CEO).
-
-## Hardening v1.3.3 (aplicado)
-
-- `userMembershipsProvider`: `FutureProvider` → `StreamProvider` — workers desactivados
-  o removidos mid-session son expulsados en tiempo real sin relogin. El listener en
-  `app.dart` limpia `selectedBusiness/Membership` cuando la membresía activa desaparece.
-- `POSScreen`: `WidgetsBindingObserver` para detener el escáner al ir a segundo plano
-  y re-armarlo al volver (Safari iOS mantenía la cámara abierta en background).
-- `ClientDetailScreen`: pantalla "Cliente eliminado" en lugar de spinner infinito
-  cuando el documento del cliente fue borrado desde otro dispositivo.
-- `AuthActionScreen`: captura `FirebaseAuthException` por `.code` en lugar de
-  string matching frágil para distinguir links expirados vs errores genéricos.
-- `BusinessSelectScreen`: flag `_selecting` previene doble-tap al elegir negocio.
-- `_CartTile` / `CheckoutScreen`: `maxLines:1 + overflow:ellipsis` en nombres de producto.
-- `_ManualSearchSheet`: empty state con mensaje cuando inventario vacío o sin resultados.
-- Admin panel: validación de email con regex (requiere TLD) en formulario de invitación.
-
-## Production hardening v1.4.0 (aplicado)
-
-**Security headers (firebase.json):**
-- `Content-Security-Policy`: scripts/estilos/conexiones solo a orígenes conocidos
-  (Firebase, Google Fonts, self). `frame-ancestors: none` previene clickjacking.
-- `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `X-XSS-Protection`
-- `Referrer-Policy: strict-origin-when-cross-origin`
-- `Permissions-Policy`: bloquea geolocation, microphone, payment
-- `Strict-Transport-Security`: HSTS con preload, max-age=1 año
-- Cache: `immutable` para assets versionados, `no-cache` para HTML/SW/manifest
-
-**Firestore RLS — aislamiento real por negocio:**
-- `canAccessBusiness()` lee `users/{uid}.businessIds` (array) y verifica `hasAny()`
-  — un worker del negocio A no puede leer datos del negocio B vía API directa.
-- `users/{uid}`: solo el propio usuario o CEO puede leer/escribir su perfil.
-- `memberships`: cada usuario solo lee sus propias membresías (por email).
-- `sales` y `fiado_payments`: append-only para no-CEO (sin update/delete — integridad contable).
-- `sales.create`: valida `userId == request.auth.uid` server-side.
-- `auth_provider.dart`: mantiene `businessIds` array en `users/{uid}` al invitar
-  y al migrar cuentas legacy, para que las reglas funcionen inmediatamente.
-
-**main.dart:**
-- Firestore offline persistence: cache ilimitado, funciona sin internet.
-- Firebase Performance Monitoring: gratuito, trazas automáticas de red y Firestore.
-- Orientación fija portrait-only.
-
-**manifest.json:**
-- PWA shortcuts: acceso directo a POS e inventario desde la pantalla de inicio.
-- `categories`, `lang`, `dir`, `display_override` agregados.
-- `theme_color` actualizado al púrpura de la marca (#7C6EF7).
-
-**Build:** `flutter build web --release --no-source-maps` (sin source maps en producción).
-
 ## Por implementar
 
-- Desde CEO panel → panel de equipo del negocio: agregar admin/trabajadores directamente.
-- Aislamiento de escritura en membresías: solo admins del negocio pueden invitar
-  (actualmente validado solo en cliente; requiere Cloud Function para server-side).
+- Aislamiento completo por negocio en Firestore rules (activar `canAccessBusiness()` cuando todos los usuarios tengan `businessIds` poblado — requiere migración o trigger)
+- Desde CEO panel → gestionar equipo de un negocio directamente
+- Validación server-side de que solo admins pueden invitar (requiere Cloud Functions — plan Blaze)

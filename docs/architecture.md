@@ -13,21 +13,20 @@
 | Excel | excel (dart) | — |
 | Fuentes | Google Fonts (Inter) | — |
 
-> La app corre como PWA web. El escáner usa Quagga2 vía bridge JS↔Dart porque
-> mobile_scanner no funciona en web/Safari iOS.
+> La app corre como PWA web. El escáner usa Quagga2 vía bridge JS↔Dart porque mobile_scanner no funciona en web/Safari iOS.
 
 ## Estructura de carpetas
 
 ```
 lib/
-├── main.dart
-├── app.dart                          # Router + ShellRoute + MaterialApp
-├── firebase_options.dart             # Generado por flutterfire configure
+├── main.dart                          # Firebase init + Firestore offline persistence
+├── app.dart                           # Router + ShellRoute + membership stream listener
+├── firebase_options.dart              # Generado por flutterfire configure
 │
 ├── core/
-│   ├── constants/app_constants.dart  # Nombres de colecciones, ceoEmail, etc.
+│   ├── constants/app_constants.dart   # Colecciones, ceoEmail, versión, defaultMinStock
 │   ├── scanner/
-│   │   └── web_scanner_bridge.dart  # Bindings dart:js_interop → scanner_bridge.js
+│   │   └── web_scanner_bridge.dart   # Bindings dart:js_interop → scanner_bridge.js
 │   ├── theme/app_theme.dart
 │   └── utils/formatters.dart
 │
@@ -40,12 +39,12 @@ lib/
     │   ├── providers/auth_provider.dart
     │   └── screens/
     │       ├── login_screen.dart
-    │       ├── business_select_screen.dart
-    │       ├── auth_action_screen.dart  # /recuperar — reset/invitación branded
+    │       ├── business_select_screen.dart  # ConsumerStatefulWidget con _selecting guard
+    │       ├── auth_action_screen.dart      # /recuperar — reset/invitación branded
     │       └── widgets/change_password_dialog.dart
     │
     ├── ceo/
-    │   └── screens/ceo_screen.dart     # Crear negocios, preview modo lectura
+    │   └── screens/ceo_screen.dart          # Crear negocios, preview modo lectura
     │
     ├── admin/
     │   └── screens/admin_panel_screen.dart  # Gestión de trabajadores
@@ -65,17 +64,17 @@ lib/
     │   ├── models/
     │   │   ├── sale_model.dart
     │   │   └── cart_item.dart
-    │   ├── providers/pos_provider.dart
+    │   ├── providers/pos_provider.dart      # Checkout con transacción Firestore
     │   └── screens/
-    │       ├── pos_screen.dart              # Escaneo + búsqueda manual
+    │       ├── pos_screen.dart              # WidgetsBindingObserver para scanner lifecycle
     │       └── checkout_screen.dart
     │
     ├── fiados/
     │   ├── models/client_model.dart
-    │   ├── providers/fiados_provider.dart
+    │   ├── providers/fiados_provider.dart   # addPayment con transacción anti-deuda-negativa
     │   └── screens/
     │       ├── fiados_screen.dart
-    │       └── client_detail_screen.dart
+    │       └── client_detail_screen.dart    # Pantalla "Cliente eliminado" si doc desaparece
     │
     └── reports/
         ├── providers/reports_provider.dart
@@ -85,7 +84,7 @@ lib/
             └── daily_reports_screen.dart
 
 web/
-├── index.html           # Loader PWA con auto-update y cache-busting
+├── index.html           # Loader PWA: auto-update, timeouts para red lenta, hint de carga lenta
 ├── quagga.min.js        # Motor Quagga2 (1D: EAN/UPC/Code128/39), bundleado local
 └── scanner_bridge.js    # Overlay full-screen, botón HTML para iOS, beep + vibración
 ```
@@ -102,89 +101,111 @@ web/
 
 /dashboard [ShellRoute]
   ├── /dashboard
-  ├── /pos
-  │     └── /pos/checkout
-  ├── /inventory
-  │     ├── /inventory/add
-  │     └── /inventory/edit/:id
-  ├── /fiados
-  │     └── /fiados/:clientId
-  ├── /reports
-  │     └── /reports/daily/:date
+  ├── /pos → /pos/checkout
+  ├── /inventory → /inventory/add | /inventory/edit/:id
+  ├── /fiados → /fiados/:clientId
+  ├── /reports → /reports/daily/:date
   └── /admin-panel
 
-/recuperar   # Ruta pública — reset password + invitaciones (sin sesión)
+/recuperar   # Pública — reset password + invitaciones (sin sesión)
 ```
 
 ## Sistema de roles y membresías
 
 - **CEO:** detectado por `AppConstants.ceoEmail`. No usa membresías. Accede a todos los negocios en preview (solo lectura).
-- **Admin / Trabajador:** la colección `memberships` vincula `{ email, businessId, role, isActive }`. Al login, si hay 2+ membresías activas se muestra el selector; si hay una sola se entra directo.
-- **Invitar:** se crea la membresía; si el correo no tiene cuenta Firebase, se crea con clave aleatoria y se envía link de recuperación para que el usuario ponga la suya.
-- **Migración legacy:** `_migrateLegacyMembership` convierte `users/{uid}.businessId+role` al modelo de membresías una sola vez al login.
+- **Admin / Trabajador:** colección `memberships` vincula `{ email, businessId, role, isActive }`.
+- Al login: 0 membresías → "sin negocio"; 1 → entra directo; 2+ → selector de negocio.
+- **Expulsión en tiempo real:** `userMembershipsProvider` es `StreamProvider` — si el admin desactiva al worker, el listener en `app.dart` limpia el estado y el router lo expulsa.
 
 ## Patrón de estado (Riverpod)
 
-- **StreamProvider** → datos en tiempo real de Firestore (productos, clientes, ventas del día, trabajadores)
-- **FutureProvider** → consultas puntuales (reportes por periodo, negocios del CEO)
-- **StateProvider** → estado de UI y negocio activo (`selectedBusinessProvider`, `selectedMembershipProvider`, periodo de reporte, búsqueda)
-- **AsyncNotifier** → operaciones con estado de carga (login, crear producto, checkout)
-- **NotifierProvider** → estado del carrito de compras
-
-## Rendimiento — filtros server-side
-
-Las ventas y pagos se filtran por fecha en el servidor, no en el cliente:
-
-```
-where(businessId).where(createdAt >= inicio).where(createdAt <= fin).orderBy(createdAt desc)
-```
-
-Requiere índices compuestos en Firestore (`firestore.indexes.json`):
-- `sales`: `businessId ASC + createdAt DESC`
-- `fiado_payments`: `businessId ASC + createdAt DESC`
-
-Si se añade un `where(igualdad) + orderBy(otro campo)`, hay que agregar el índice y hacer `firebase deploy --only firestore:indexes`.
+| Tipo | Uso |
+|------|-----|
+| `StreamProvider` | Datos en tiempo real: productos, clientes, ventas del día, membresías |
+| `FutureProvider` | Consultas puntuales: reportes por periodo, negocios del CEO |
+| `StateProvider` | UI y selección: negocio activo, membresía, periodo, búsqueda |
+| `AsyncNotifier` | Operaciones: login, crear producto, checkout, pagos |
+| `NotifierProvider` | Carrito de compras |
 
 ## Escáner de código de barras (PWA/Safari iOS)
 
-Motor Quagga2 vía bridge JS↔Dart:
-
-1. `web/quagga.min.js` — librería Quagga2 bundleada local (no CDN)
-2. `web/scanner_bridge.js` — overlay full-screen, init Quagga, beep, línea de mira
+1. `web/quagga.min.js` — Quagga2 bundleado local (no CDN)
+2. `web/scanner_bridge.js` — overlay full-screen, beep, línea de mira, botón HTML para iOS
 3. `lib/core/scanner/web_scanner_bridge.dart` — `dart:js_interop` bindings
 
-Truco para Safari iOS (getUserMedia exige gesto DOM real): `showScanTrigger` coloca un `<button>` HTML transparente encima del botón Flutter antes del primer toque. Así el primer tap va directo al elemento HTML y Safari habilita la cámara.
+**Truco iOS:** `showScanTrigger` coloca un `<button>` HTML transparente encima del botón Flutter antes del primer toque — Safari exige gesto DOM real para `getUserMedia`.
 
-Config clave: `numOfWorkers: 0` (evita worker-blobs que rompen en Safari), rechazo de lecturas con `avgError > 0.20`.
+**Config clave:** `numOfWorkers: 0` (evita worker-blobs en Safari), rechazo con `avgError > 0.20`.
+
+**Lifecycle:** `POSScreen` implementa `WidgetsBindingObserver` — para la cámara al ir a segundo plano.
 
 ## Integridad de datos
 
-- **Código de barras único:** `product_form` valida antes de guardar que ningún otro producto use el mismo código.
-- **Stock sin sobreventa:** `POSNotifier.checkout` usa una transacción Firestore que re-lee el stock real y aborta si el carrito lo supera.
-- **Sin doble-submit:** checkout y registro de pago usan un flag síncrono (`_submitting`) seteado antes del primer `await`.
+| Garantía | Mecanismo |
+|----------|-----------|
+| Stock sin sobreventa | Transacción Firestore en checkout — re-lee stock real |
+| Deuda nunca negativa | Transacción Firestore en `addPayment` — re-lee deuda real |
+| Sin doble-submit | Flag síncrono `_submitting` antes del primer `await` |
+| Ventas immutables | Firestore rules: `update/delete` solo para CEO |
+| Pagos immutables | Firestore rules: `update/delete` solo para CEO |
+| Sales.userId correcto | Firestore rules: `userId == request.auth.uid` en create |
 
-## Firestore — colecciones
+## Firestore — esquema completo
 
 ```
-users/{uid}           → role, businessId (legacy), isActive
-businesses/{id}       → name, ownerId, createdAt
-memberships/{id}      → email, name, businessId, role, isActive, createdAt
-products/{id}         → businessId, name, barcode?, price, cost?, stock, minStock, hasBarcode
-sales/{id}            → businessId, userId, userName, items[], total, paymentType, clientId?, createdAt
-clients/{id}          → businessId, name, phone?, totalDebt
-fiado_payments/{id}   → clientId, clientName, businessId, amount, note?, createdAt
+users/{uid}
+  email, name, businessId (legacy), businessIds[] (nuevo), isActive, role, createdAt
+
+businesses/{id}
+  name, ownerId, createdAt
+
+memberships/{id}
+  email (lowercase), name, businessId, role: admin|worker, isActive, createdAt
+
+products/{id}
+  businessId, name, barcode?, price, cost?, stock, minStock, hasBarcode, category?, createdAt, updatedAt
+
+sales/{id}
+  businessId, userId, userName, items[{productId,productName,quantity,price}],
+  total, paymentType: cash|fiado|card, clientId?, clientName?, createdAt
+
+clients/{id}
+  businessId, name, phone?, totalDebt, createdAt, updatedAt
+
+fiado_payments/{id}
+  clientId, clientName (denorm.), businessId, amount, note?, createdAt
 ```
 
-## Auto-update PWA
+## Rendimiento — filtros server-side
 
-`web/index.html` implementa un loader que actualiza la app automáticamente:
-1. Baja `flutter_bootstrap.js` con `?_=timestamp` (nunca cacheado)
-2. Si `serviceWorkerVersion` cambió: borra todos los caches, desregistra el Service Worker, recarga una vez
-3. Todos los scripts fijos (quagga, scanner_bridge) se cargan con `?v=<version>` para bustar el caché HTTP de disco
+```dart
+// Dashboard — ventas de hoy
+where(businessId).where(createdAt >= startOfDay).orderBy(createdAt desc)
 
-## Reglas de Firestore (estado actual)
+// Reportes — ventas por periodo
+where(businessId).where(createdAt >= start).where(createdAt <= end).orderBy(createdAt desc)
+```
 
-- Requieren usuario autenticado para todo acceso
-- Negocios: solo el CEO puede crear/editar/borrar
-- Paths no mapeados: deniegan por defecto
-- Pendiente: aislamiento por negocio (worker de A no puede leer datos de B vía API directa)
+Índices compuestos en `firestore.indexes.json`:
+- `sales`: `businessId ASC + createdAt DESC`
+- `fiado_payments`: `businessId ASC + createdAt DESC`
+
+## Auto-update PWA (web/index.html)
+
+| Parámetro | Valor | Razón |
+|-----------|-------|-------|
+| Version-check timeout | 8s (15s en 2G) | Era 2.5s — muy corto para datos móviles |
+| Watchdog | 45s | Era 12s — CanvasKit.wasm tarda 15-25s en 3G |
+| Slow-hint | visible tras 8s | El usuario sabe que carga, no que se colgó |
+
+## Firestore rules (estado actual)
+
+- `signedIn()` requerido para todo
+- `businesses`: solo CEO puede crear/editar/borrar
+- `users/{uid}`: solo propio usuario o CEO
+- `memberships`: lectura solo de las propias (por email)
+- `sales` + `fiado_payments`: append-only para no-CEO
+- `sales.create`: valida `userId == request.auth.uid`
+- Default deny
+
+**Pendiente:** activar `canAccessBusiness()` con `businessIds[]` para aislamiento completo por negocio — las reglas ya tienen la función lista.

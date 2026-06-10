@@ -7,24 +7,24 @@
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="NegocioApp">
 
-  <!-- viewport-fit=cover expone los safe-area insets (barra de inicio del iPhone,
-       notch) a Flutter, para que la barra de menú inferior no quede cortada. -->
   <meta name="viewport"
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 
   <!-- iOS PWA -->
   <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="NegocioApp">
+  <meta name="format-detection" content="telephone=no, email=no, address=no">
   <meta name="theme-color" content="#0F1117">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/Icon-192.png">
+  <link rel="apple-touch-icon" sizes="192x192" href="icons/Icon-192.png">
+  <link rel="apple-touch-icon" sizes="512x512" href="icons/Icon-512.png">
 
   <link rel="icon" type="image/png" href="favicon.png"/>
   <title>NegocioApp</title>
   <link rel="manifest" href="manifest.json">
 
-  <!-- Pantalla de inicio: aparece al instante (HTML puro) y se quita sola cuando
-       Flutter ya pintó. Evita el "blanco" mientras carga el motor gráfico. -->
   <style>
     html, body { margin: 0; height: 100%; background: #0F1117; }
     #app-splash {
@@ -46,26 +46,28 @@
       border: 3px solid rgba(255, 255, 255, 0.12); border-top-color: #00C896;
       border-radius: 50%; animation: splash-spin 0.8s linear infinite;
     }
+    #app-splash .slow-hint {
+      margin-top: 20px; font-size: 12px; color: #555870;
+      display: none; text-align: center; padding: 0 40px;
+    }
     @keyframes splash-spin { to { transform: rotate(360deg); } }
   </style>
 
-  <!--
-    Auto-update + barcode scanner loader.
-    Goal: the user NEVER has to refresh or clear anything. Every deploy ships a
-    new serviceWorkerVersion; we detect it, wipe stale caches, and load all
-    scripts with ?v=<version> so even files marked `immutable` are re-fetched.
-  -->
   <script>
-    // Watchdog de auto-recuperación: si Flutter no renderiza en ~12s (caché
-    // corrupto/atascado), limpia TODO y recarga una sola vez para auto-sanar.
     (function () {
       function flutterBooted() {
         return !!document.querySelector('flutter-view, flt-glass-pane, flt-scene-host, canvas');
       }
 
-      // Quitar la pantalla de inicio cuando Flutter pinta. Se deja ~700ms extra
-      // para que el dashboard alcance a dibujar su primer frame y no se vea el
-      // "tirón" inicial bajo el splash.
+      // Mostrar hint de "conexión lenta" si tarda más de 8s — el usuario sabe
+      // que está cargando, no que se colgó.
+      setTimeout(function () {
+        if (flutterBooted()) return;
+        var hint = document.getElementById('slow-hint');
+        if (hint) hint.style.display = 'block';
+      }, 8000);
+
+      // Quitar splash cuando Flutter pinta.
       var splashPoll = setInterval(function () {
         if (!flutterBooted()) return;
         clearInterval(splashPoll);
@@ -78,8 +80,10 @@
         }, 700);
       }, 120);
 
-      // Watchdog: si Flutter no renderiza en ~12s (caché corrupto/atascado),
-      // limpia TODO y recarga una sola vez para auto-sanar.
+      // Watchdog: 45s (era 12s).
+      // canvaskit.wasm pesa 6.9MB — en 3G/datos lentos tarda 15-25s.
+      // Con 12s el watchdog disparaba antes de que terminara, limpiaba el
+      // caché y reiniciaba → loop infinito. 45s da margen real para redes lentas.
       setTimeout(async function () {
         if (flutterBooted()) return;
         if (sessionStorage.getItem('_watchdog_reloaded') === '1') return;
@@ -95,7 +99,7 @@
           }
         } catch (e) {}
         location.reload();
-      }, 12000);
+      }, 45000);
     })();
 
     (async function () {
@@ -109,14 +113,27 @@
         });
       }
 
+      // Detectar conexión lenta para ajustar el timeout de version-check.
+      // Navigator.connection es una API experimental pero disponible en Chrome/Android.
+      // En Safari/iOS no existe — usamos el timeout largo de todas formas.
+      var isSlowConnection = false;
+      try {
+        var conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+        if (conn) {
+          isSlowConnection = conn.effectiveType === '2g' || conn.effectiveType === 'slow-2g' ||
+                             conn.saveData === true;
+        }
+      } catch (e) {}
+
+      // Timeout del version-check: 8s en conexión normal, 15s en conexión lenta.
+      // Antes era 2.5s — demasiado corto para datos móviles lentos, hacía que
+      // siempre cargara la versión vieja del caché.
+      var versionCheckTimeout = isSlowConnection ? 15000 : 8000;
+
       let version = String(Date.now());
       try {
-        // Always pull flutter_bootstrap.js straight from the network (unique URL
-        // bypasses both the service worker and the HTTP cache). Abort after 2.5s
-        // so a slow/flaky network can't hang the app start — we fall back to the
-        // cached app below.
         const ctrl = new AbortController();
-        const to = setTimeout(function () { ctrl.abort(); }, 2500);
+        const to = setTimeout(function () { ctrl.abort(); }, versionCheckTimeout);
         const resp = await fetch('/flutter_bootstrap.js?_=' + Date.now(),
           { cache: 'no-store', signal: ctrl.signal });
         const text = await resp.text();
@@ -124,15 +141,10 @@
 
         const match = text.match(/serviceWorkerVersion:\s*"(\d+)"/);
         version = match ? match[1] : version;
+        window._appVersion = version;
 
         const storedVersion = localStorage.getItem('_app_version');
 
-        // App actualizada → limpiar caches + service worker y CONTINUAR cargando
-        // la versión nueva en ESTA misma sesión (sin recargar). Antes se hacía
-        // location.reload(), lo que mostraba el splash dos veces (doble-arranque).
-        // El bootstrap y los scripts se piden con ?v=version fresco, así que la
-        // app queda actualizada igual; el shell (index.html) se refresca solo en
-        // la próxima apertura gracias a la limpieza de caches/SW.
         if (storedVersion && storedVersion !== version) {
           if ('caches' in window) {
             const keys = await caches.keys();
@@ -145,13 +157,9 @@
         }
         localStorage.setItem('_app_version', version);
 
-        // Barcode scanner: Quagga2 (143KB) loads in the BACKGROUND — it's only
-        // needed when the user opens the scanner, so it must not delay app start.
-        // The tiny bridge is awaited since Dart calls its functions.
         loadScript('quagga.min.js?v=' + version);
         await loadScript('scanner_bridge.js?v=' + version);
 
-        // Patch main.dart.js with the version and run the bootstrap as a blob.
         const patched = text
           .replace('"main.dart.js"', '"main.dart.js?v=' + version + '"')
           .replace("'main.dart.js'", "'main.dart.js?v=" + version + "'")
@@ -165,8 +173,10 @@
         document.head.appendChild(s);
 
       } catch (e) {
-        console.warn('Version check failed, loading normally:', e);
-        await loadScript('quagga.min.js?v=' + version);
+        // Sin red o timeout: cargar desde caché (funciona offline).
+        console.warn('Version check failed, loading from cache:', e.message || e);
+        window._appVersion = version;
+        loadScript('quagga.min.js?v=' + version);
         await loadScript('scanner_bridge.js?v=' + version);
         const s = document.createElement('script');
         s.src = 'flutter_bootstrap.js';
@@ -189,6 +199,9 @@
     <div class="title">NegocioApp</div>
     <div class="sub">Cargando…</div>
     <div class="spinner"></div>
+    <div id="slow-hint" class="slow-hint">
+      Conexión lenta detectada.<br>Cargando desde el caché…
+    </div>
   </div>
 </body>
 </html>

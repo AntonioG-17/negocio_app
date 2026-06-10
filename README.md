@@ -2,7 +2,8 @@
 
 Dashboard e inventario profesional para negocios físicos. Corre como **PWA web** instalable en iPhone y Android desde el navegador.
 
-**URL live:** https://proyecto-app-negocio.web.app
+**URL live:** https://proyecto-app-negocio.web.app  
+**Versión:** v1.4.5
 
 ## Funcionalidades
 
@@ -29,13 +30,13 @@ Flutter 3.44 + Firebase (Firestore + Auth + Hosting) + Riverpod + go_router + Qu
 
 ## Despliegue
 
-La app se despliega como PWA en Firebase Hosting:
-
 ```bash
-flutter build web --release && firebase deploy --only hosting
+flutter build web --release --no-source-maps
+firebase deploy
 ```
 
-El PWA se actualiza automáticamente en cada visita sin que el usuario tenga que reinstalar nada.
+La app se actualiza automáticamente — el usuario nunca tiene que refrescar ni reinstalar.  
+Resistente a WiFi/datos lentos: timeout de 8s para verificar versión (15s en 2G), watchdog de 45s, caché offline con Firestore persistence.
 
 ## Desarrollo local
 
