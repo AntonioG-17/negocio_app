@@ -5,7 +5,7 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="NegocioApp — Dashboard, inventario y punto de venta para tu negocio">
+  <meta name="description" content="NegocioApp">
 
   <!-- viewport-fit=cover expone los safe-area insets (barra de inicio del iPhone,
        notch) a Flutter, para que la barra de menú inferior no quede cortada. -->
@@ -14,32 +14,14 @@
 
   <!-- iOS PWA -->
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <!-- black-translucent: la barra de estado es transparente, el contenido
-       de Flutter se extiende debajo de ella (viewport-fit=cover lo gestiona). -->
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="NegocioApp">
   <meta name="theme-color" content="#0F1117">
-  <!-- Deshabilitar detección automática de teléfonos/emails en iOS para
-       evitar que Safari subraye texto del app como si fueran links. -->
-  <meta name="format-detection" content="telephone=no, email=no, address=no">
-  <!-- Iconos iOS: el sistema elige el más cercano al tamaño necesario.
-       180x180 = iPhone retina (más común). Sin esto usa el de 192px del
-       manifest que funciona pero no es óptimo. -->
-  <link rel="apple-touch-icon" sizes="180x180" href="icons/Icon-192.png">
-  <link rel="apple-touch-icon" sizes="192x192" href="icons/Icon-192.png">
-  <link rel="apple-touch-icon" sizes="512x512" href="icons/Icon-512.png">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <link rel="icon" type="image/png" href="favicon.png"/>
   <title>NegocioApp</title>
   <link rel="manifest" href="manifest.json">
-
-  <!-- Preload crítico: avisa al browser que descargue el motor gráfico en
-       paralelo con el HTML, sin bloquearlo. CanvasKit.wasm es 6.9MB — empezar
-       a descargarlo lo antes posible reduce el tiempo de primer render. -->
-  <link rel="preload" href="canvaskit/canvaskit.wasm" as="fetch" crossorigin="anonymous">
-  <link rel="preload" href="canvaskit/canvaskit.js" as="script">
-  <link rel="modulepreload" href="flutter_bootstrap.js">
 
   <!-- Pantalla de inicio: aparece al instante (HTML puro) y se quita sola cuando
        Flutter ya pintó. Evita el "blanco" mientras carga el motor gráfico. -->
@@ -49,11 +31,11 @@
       position: fixed; inset: 0; z-index: 99999; background: #0F1117;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      transition: opacity 0.4s ease; opacity: 1;
+      transition: opacity 0.35s ease; opacity: 1;
     }
     #app-splash .logo {
       width: 156px; height: 156px; border-radius: 36px;
-      background: rgba(124, 110, 247, 0.14);
+      background: rgba(0, 200, 150, 0.14);
       display: flex; align-items: center; justify-content: center; margin-bottom: 28px;
     }
     #app-splash .logo svg { width: 92px; height: 92px; }
@@ -61,34 +43,29 @@
     #app-splash .sub { color: #8B8FA8; font-size: 14px; margin-top: 8px; }
     #app-splash .spinner {
       margin-top: 30px; width: 30px; height: 30px;
-      border: 3px solid rgba(255, 255, 255, 0.12); border-top-color: #7C6EF7;
+      border: 3px solid rgba(255, 255, 255, 0.12); border-top-color: #00C896;
       border-radius: 50%; animation: splash-spin 0.8s linear infinite;
     }
     @keyframes splash-spin { to { transform: rotate(360deg); } }
   </style>
 
   <!--
-    Auto-update + carga de scanner.
-
-    Objetivos:
-    1. El usuario NUNCA tiene que refrescar ni reinstalar nada.
-    2. Al detectar una nueva versión, limpiar solo el caché de la APP
-       (main.dart.js, assets, flutter_bootstrap) pero PRESERVAR el caché
-       del motor gráfico (canvaskit/*.wasm, *.js) porque ese no cambia
-       entre deploys de la app — solo cuando se actualiza Flutter.
-       Esto evita re-descargar 6.9MB en cada deploy.
-    3. Timeout de version-check: 8s (antes 2.5s). En conexión móvil lenta
-       2.5s es insuficiente y hacía que el app cargara la versión vieja.
-    4. Watchdog: 30s (antes 12s). CanvasKit.wasm tarda varios segundos en
-       descargar en primera visita — el watchdog no debe disparar antes.
+    Auto-update + barcode scanner loader.
+    Goal: the user NEVER has to refresh or clear anything. Every deploy ships a
+    new serviceWorkerVersion; we detect it, wipe stale caches, and load all
+    scripts with ?v=<version> so even files marked `immutable` are re-fetched.
   -->
   <script>
+    // Watchdog de auto-recuperación: si Flutter no renderiza en ~12s (caché
+    // corrupto/atascado), limpia TODO y recarga una sola vez para auto-sanar.
     (function () {
       function flutterBooted() {
         return !!document.querySelector('flutter-view, flt-glass-pane, flt-scene-host, canvas');
       }
 
-      // Quitar splash cuando Flutter pinta. 600ms de gracia para primer frame.
+      // Quitar la pantalla de inicio cuando Flutter pinta. Se deja ~700ms extra
+      // para que el dashboard alcance a dibujar su primer frame y no se vea el
+      // "tirón" inicial bajo el splash.
       var splashPoll = setInterval(function () {
         if (!flutterBooted()) return;
         clearInterval(splashPoll);
@@ -96,15 +73,13 @@
           var sp = document.getElementById('app-splash');
           if (sp) {
             sp.style.opacity = '0';
-            setTimeout(function () { if (sp.parentNode) sp.parentNode.removeChild(sp); }, 450);
+            setTimeout(function () { if (sp.parentNode) sp.parentNode.removeChild(sp); }, 400);
           }
-        }, 600);
+        }, 700);
       }, 120);
 
-      // Watchdog: si Flutter no renderiza en 30s es porque el caché está
-      // corrupto. Limpia solo el caché de la app (NO el de canvaskit) y
-      // recarga una vez. En primera visita, canvaskit.wasm tarda ~15s en
-      // conexión lenta — 30s le da margen suficiente.
+      // Watchdog: si Flutter no renderiza en ~12s (caché corrupto/atascado),
+      // limpia TODO y recarga una sola vez para auto-sanar.
       setTimeout(async function () {
         if (flutterBooted()) return;
         if (sessionStorage.getItem('_watchdog_reloaded') === '1') return;
@@ -112,11 +87,7 @@
         try {
           if ('caches' in window) {
             var keys = await caches.keys();
-            // Solo borrar caches que no sean del motor gráfico.
-            var appCaches = keys.filter(function(k) {
-              return !k.includes('canvaskit') && !k.includes('engine');
-            });
-            await Promise.all(appCaches.map(function (k) { return caches.delete(k); }));
+            await Promise.all(keys.map(function (k) { return caches.delete(k); }));
           }
           if ('serviceWorker' in navigator) {
             var regs = await navigator.serviceWorker.getRegistrations();
@@ -124,7 +95,7 @@
           }
         } catch (e) {}
         location.reload();
-      }, 30000);
+      }, 12000);
     })();
 
     (async function () {
@@ -138,20 +109,14 @@
         });
       }
 
-      // Preservar claves de caché que contienen el motor gráfico.
-      // Estos archivos solo cambian cuando se actualiza Flutter (no la app).
-      function isEngineCacheKey(key) {
-        return key.includes('canvaskit') || key.includes('skwasm') ||
-               key.includes('engine') || key.includes('flutter-engine');
-      }
-
       let version = String(Date.now());
       try {
-        // Verificar versión desde la red con timeout de 8s (antes 2.5s).
-        // En conexión móvil lenta 2.5s no era suficiente y el app cargaba
-        // la versión vieja del caché.
+        // Always pull flutter_bootstrap.js straight from the network (unique URL
+        // bypasses both the service worker and the HTTP cache). Abort after 2.5s
+        // so a slow/flaky network can't hang the app start — we fall back to the
+        // cached app below.
         const ctrl = new AbortController();
-        const to = setTimeout(function () { ctrl.abort(); }, 8000);
+        const to = setTimeout(function () { ctrl.abort(); }, 2500);
         const resp = await fetch('/flutter_bootstrap.js?_=' + Date.now(),
           { cache: 'no-store', signal: ctrl.signal });
         const text = await resp.text();
@@ -162,15 +127,16 @@
 
         const storedVersion = localStorage.getItem('_app_version');
 
-        // Nueva versión detectada → limpiar SOLO el caché de la app,
-        // preservando el motor gráfico (canvaskit, skwasm) que no cambia.
-        // Antes se borraba TODO el caché, forzando re-descarga de 6.9MB
-        // en cada deploy aunque el motor no hubiera cambiado.
+        // App actualizada → limpiar caches + service worker y CONTINUAR cargando
+        // la versión nueva en ESTA misma sesión (sin recargar). Antes se hacía
+        // location.reload(), lo que mostraba el splash dos veces (doble-arranque).
+        // El bootstrap y los scripts se piden con ?v=version fresco, así que la
+        // app queda actualizada igual; el shell (index.html) se refresca solo en
+        // la próxima apertura gracias a la limpieza de caches/SW.
         if (storedVersion && storedVersion !== version) {
           if ('caches' in window) {
             const keys = await caches.keys();
-            const appKeys = keys.filter(k => !isEngineCacheKey(k));
-            await Promise.all(appKeys.map(k => caches.delete(k)));
+            await Promise.all(keys.map(k => caches.delete(k)));
           }
           if ('serviceWorker' in navigator) {
             const regs = await navigator.serviceWorker.getRegistrations();
@@ -178,16 +144,14 @@
           }
         }
         localStorage.setItem('_app_version', version);
-        // Exponer la versión globalmente para que scanner_bridge.js pueda
-        // usar el mismo ?v= al cargar quagga bajo demanda (ensureQuagga).
-        window._appVersion = version;
 
-        // Quagga2 carga en background (no bloquea el inicio de la app).
-        // scanner_bridge.js se espera porque Dart llama sus funciones.
+        // Barcode scanner: Quagga2 (143KB) loads in the BACKGROUND — it's only
+        // needed when the user opens the scanner, so it must not delay app start.
+        // The tiny bridge is awaited since Dart calls its functions.
         loadScript('quagga.min.js?v=' + version);
         await loadScript('scanner_bridge.js?v=' + version);
 
-        // Ejecutar el bootstrap con la versión correcta en todos los paths.
+        // Patch main.dart.js with the version and run the bootstrap as a blob.
         const patched = text
           .replace('"main.dart.js"', '"main.dart.js?v=' + version + '"')
           .replace("'main.dart.js'", "'main.dart.js?v=" + version + "'")
@@ -201,10 +165,8 @@
         document.head.appendChild(s);
 
       } catch (e) {
-        // Timeout o sin red: cargar desde caché (funciona offline).
-        console.warn('Version check failed, loading from cache:', e.message || e);
-        window._appVersion = version;
-        loadScript('quagga.min.js?v=' + version);
+        console.warn('Version check failed, loading normally:', e);
+        await loadScript('quagga.min.js?v=' + version);
         await loadScript('scanner_bridge.js?v=' + version);
         const s = document.createElement('script');
         s.src = 'flutter_bootstrap.js';
@@ -217,7 +179,7 @@
   <div id="app-splash">
     <div class="logo">
       <svg xmlns="http://www.w3.org/2000/svg" width="92" height="92"
-           viewBox="0 0 24 24" fill="none" stroke="#7C6EF7" stroke-width="2"
+           viewBox="0 0 24 24" fill="none" stroke="#00C896" stroke-width="2"
            stroke-linecap="round" stroke-linejoin="round">
         <path d="M3 9l1.5-5h15L21 9" />
         <path d="M4 9v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9" />

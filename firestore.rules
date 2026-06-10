@@ -1,15 +1,15 @@
 rules_version = '2';
 
-// Reglas de seguridad de Firestore — NegocioApp v1.4.3
+// Reglas de seguridad de Firestore.
 //
-// canAccessBusiness() verifica pertenencia en orden de precedencia:
-//   1. CEO → siempre pasa
-//   2. businessIds array (nuevo modelo) → si existe y contiene el businessId
-//   3. businessId string (modelo legacy) → fallback para cuentas existentes
-//      que aún no tienen el array (se puebla la próxima vez que se invita/migra)
+// Etapa 3 (base segura): se EXIGE sesión iniciada para TODO acceso. Esto cierra
+// el acceso público/anónimo que tenía la base en modo prueba (cualquiera con la
+// URL podía leer/escribir). La creación de negocios queda solo para el CEO.
 //
-// Esto evita que usuarios existentes queden bloqueados al actualizar las reglas.
-
+// Pendiente (endurecimiento por negocio): que un trabajador del negocio A no
+// pueda leer datos del negocio B vía API directa. Eso requiere un índice de
+// membresías por usuario (users/{uid}.businessIds) y se hará en un paso aparte
+// con pruebas, para no arriesgar la app en vivo.
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -22,83 +22,23 @@ service cloud.firestore {
         && request.auth.token.email == 'antonio.geldes1701@gmail.com';
     }
 
-    function userDoc() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-    }
-
-    function canAccessBusiness(businessId) {
-      return isCeo() || (
-        signedIn() && (
-          userDoc().get('businessIds', []).hasAny([businessId]) ||
-          userDoc().get('businessId', '') == businessId
-        )
-      );
-    }
-
-    // ── Negocios ─────────────────────────────────────────────────────────────
-
-    match /businesses/{businessId} {
+    // Negocios: cualquiera con sesión los lee (nombres para el menú de
+    // selección y el preview); solo el CEO los crea/edita/borra.
+    match /businesses/{id} {
       allow read: if signedIn();
       allow create, update, delete: if isCeo();
     }
 
-    // ── Perfiles de usuario ───────────────────────────────────────────────────
+    // Perfil, membresías y datos del negocio: requieren sesión iniciada.
+    match /users/{uid}          { allow read, write: if signedIn(); }
+    match /memberships/{id}     { allow read, write: if signedIn(); }
+    match /products/{id}        { allow read, write: if signedIn(); }
+    match /sales/{id}           { allow read, write: if signedIn(); }
+    match /clients/{id}         { allow read, write: if signedIn(); }
+    match /fiado_payments/{id}  { allow read, write: if signedIn(); }
 
-    match /users/{uid} {
-      allow read, write: if signedIn() && (request.auth.uid == uid || isCeo());
-    }
-
-    // ── Membresías ────────────────────────────────────────────────────────────
-
-    match /memberships/{membershipId} {
-      allow read: if signedIn() && (
-        isCeo() ||
-        resource.data.email == request.auth.token.email
-      );
-      allow write: if signedIn() && (
-        isCeo() ||
-        canAccessBusiness(request.resource.data.businessId)
-      );
-    }
-
-    // ── Productos ─────────────────────────────────────────────────────────────
-
-    match /products/{productId} {
-      allow read:   if canAccessBusiness(resource.data.businessId);
-      allow create: if canAccessBusiness(request.resource.data.businessId);
-      allow update: if canAccessBusiness(resource.data.businessId)
-                    && canAccessBusiness(request.resource.data.businessId);
-      allow delete: if canAccessBusiness(resource.data.businessId);
-    }
-
-    // ── Ventas (append-only para no-CEO) ─────────────────────────────────────
-
-    match /sales/{saleId} {
-      allow read:   if canAccessBusiness(resource.data.businessId);
-      allow create: if canAccessBusiness(request.resource.data.businessId)
-                    && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if isCeo();
-    }
-
-    // ── Clientes ─────────────────────────────────────────────────────────────
-
-    match /clients/{clientId} {
-      allow read:   if canAccessBusiness(resource.data.businessId);
-      allow create: if canAccessBusiness(request.resource.data.businessId);
-      allow update: if canAccessBusiness(resource.data.businessId);
-      allow delete: if canAccessBusiness(resource.data.businessId);
-    }
-
-    // ── Pagos de fiados (append-only para no-CEO) ─────────────────────────────
-
-    match /fiado_payments/{paymentId} {
-      allow read:   if canAccessBusiness(resource.data.businessId);
-      allow create: if canAccessBusiness(request.resource.data.businessId);
-      allow update, delete: if isCeo();
-    }
-
-    // ── Catch-all ─────────────────────────────────────────────────────────────
-
+    // Todo lo demás: denegado por defecto (no hace falta declararlo, pero queda
+    // explícito).
     match /{document=**} {
       allow read, write: if false;
     }
