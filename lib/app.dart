@@ -238,8 +238,6 @@ class _AppShellState extends ConsumerState<AppShell> {
         icon: Icon(Icons.bar_chart_outlined), label: 'Reportes'),
   ];
 
-  int _currentIndex = 0;
-
   @override
   Widget build(BuildContext context) {
     final role = ref.watch(currentUserRoleProvider);
@@ -249,27 +247,20 @@ class _AppShellState extends ConsumerState<AppShell> {
       _ => (_adminRoutes, _adminItems),
     };
 
-    // Sincronizar índice con ruta actual
+    // Calcular el índice activo directamente desde la ruta — sin setState
+    // ni addPostFrameCallback. Antes el doble rebuild causaba que los botones
+    // parecieran necesitar doble tap para reaccionar.
     final location = GoRouterState.of(context).matchedLocation;
-    final idx = routes.indexWhere((r) => location.startsWith(r));
-    if (idx != -1 && idx != _currentIndex) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) setState(() => _currentIndex = idx);
-      });
-    }
+    final currentIndex = routes
+        .indexWhere((r) => location.startsWith(r))
+        .clamp(0, items.length - 1);
 
     return Scaffold(
-      appBar: role == UserRole.admin
-          ? null // el dashboard screen tiene su propio AppBar con el botón de equipo
-          : null,
       body: widget.child,
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex.clamp(0, items.length - 1),
+        currentIndex: currentIndex,
         items: items,
-        onTap: (i) {
-          setState(() => _currentIndex = i);
-          context.go(routes[i]);
-        },
+        onTap: (i) => context.go(routes[i]),
       ),
     );
   }

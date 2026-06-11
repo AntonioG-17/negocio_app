@@ -373,7 +373,9 @@
       width: w + 'px', height: h + 'px',
       background: 'transparent',
       border: 'none', outline: 'none',
-      zIndex: '2147483646',
+      // z-index reducido: suficiente para estar sobre Flutter (que usa ~1000)
+      // pero sin bloquear el resto de la UI en transiciones de pantalla.
+      zIndex: '9999',
       cursor: 'pointer',
       touchAction: 'manipulation',
       // Uncomment to debug position:

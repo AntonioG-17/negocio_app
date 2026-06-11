@@ -19,6 +19,10 @@ class AppTheme {
       useMaterial3: true,
       brightness: Brightness.dark,
       scaffoldBackgroundColor: background,
+      // En web/PWA el efecto ripple por defecto tiene un delay visual perceptible
+      // que hace que los botones parezcan necesitar doble tap. InkRipple es más
+      // rápido que InkSplash y da feedback inmediato.
+      splashFactory: InkRipple.splashFactory,
       colorScheme: const ColorScheme.dark(
         primary: primary,
         onPrimary: Colors.white,

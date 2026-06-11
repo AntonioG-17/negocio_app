@@ -265,6 +265,7 @@ class AuthNotifier extends AsyncNotifier<void> {
       final bizRef = _db.collection(AppConstants.colBusinesses).doc();
       await bizRef.set({
         'name': businessName.trim(),
+        'ownerId': _auth.currentUser!.uid,
         'createdAt': FieldValue.serverTimestamp(),
       });
       await _inviteToBusinessId(
@@ -417,6 +418,7 @@ class AuthNotifier extends AsyncNotifier<void> {
   Future<void> createBusiness(String name) async {
     await _db.collection(AppConstants.colBusinesses).add({
       'name': name.trim(),
+      'ownerId': _auth.currentUser!.uid,
       'createdAt': FieldValue.serverTimestamp(),
     });
   }
