@@ -85,7 +85,9 @@ class ClientDetailScreen extends ConsumerWidget {
                       radius: 30,
                       backgroundColor: AppTheme.warning.withValues(alpha: 0.15),
                       child: Text(
-                        client.name.substring(0, 1).toUpperCase(),
+                        client.name.isNotEmpty
+                            ? client.name.substring(0, 1).toUpperCase()
+                            : '?',
                         style: const TextStyle(
                             color: AppTheme.warning,
                             fontWeight: FontWeight.bold,
@@ -260,7 +262,7 @@ class ClientDetailScreen extends ConsumerWidget {
                           height: 20,
                           width: 20,
                           child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.black))
+                              strokeWidth: 2, color: Colors.white))
                       : const Text('Confirmar pago'),
                 );
               },

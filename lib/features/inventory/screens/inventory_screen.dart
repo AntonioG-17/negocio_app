@@ -35,7 +35,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
 
     // Valor total del inventario (suma de precio × stock de todos los productos)
     final totalInventoryValue = products.valueOrNull?.fold<double>(
-          0, (acc, p) => acc + p.price * p.stock) ?? 0;
+          0, (acc, p) => acc + (p.price * p.stock).clamp(0, 1e12)) ?? 0;
     final totalProducts = products.valueOrNull?.length ?? 0;
 
     return Scaffold(

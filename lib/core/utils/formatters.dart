@@ -7,8 +7,16 @@ final _dateTime = DateFormat('dd/MM/yyyy HH:mm');
 final _timeOnly = DateFormat('HH:mm');
 final _monthYear = DateFormat('MMMM yyyy', 'es');
 
-String formatCurrency(double amount) => _currency.format(amount);
-String formatCurrencyDecimal(double amount) => _currencyDecimal.format(amount);
+String formatCurrency(double amount) {
+  if (amount.isNaN || amount.isInfinite) return '\$0';
+  return _currency.format(amount);
+}
+
+String formatCurrencyDecimal(double amount) {
+  if (amount.isNaN || amount.isInfinite) return '\$0.00';
+  return _currencyDecimal.format(amount);
+}
+
 String formatDate(DateTime date) => _dateShort.format(date);
 String formatDateTime(DateTime date) => _dateTime.format(date);
 String formatTime(DateTime date) => _timeOnly.format(date);

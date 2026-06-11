@@ -132,13 +132,13 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
               ],
               selected: {period},
               onSelectionChanged: (s) {
-                // Volver a un periodo rápido limpia el rango personalizado.
+                if (s.isEmpty) return; // guard: set nunca debería ser vacío
                 ref.read(customRangeProvider.notifier).state = null;
                 ref.read(reportPeriodProvider.notifier).state = s.first;
               },
               style: SegmentedButton.styleFrom(
                 selectedBackgroundColor: AppTheme.primary,
-                selectedForegroundColor: Colors.black,
+                selectedForegroundColor: Colors.white,
               ),
             ),
           ),

@@ -126,7 +126,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                   controller: ctrl,
                   autofocus: true,
                   keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(10), // máx $9,999,999,999
+                  ],
                   onChanged: (_) => setS(() {}),
                   decoration: const InputDecoration(
                     labelText: '¿Con cuánto paga?',
@@ -490,7 +493,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               child: posState.isLoading
                   ? const SizedBox(
                       height: 20, width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                   : Text(switch (_paymentType) {
                       PaymentType.fiado => 'Registrar fiado',
                       PaymentType.card => 'Cobrar con tarjeta',

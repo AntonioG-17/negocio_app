@@ -239,7 +239,7 @@ class _NewBusinessSheetState extends ConsumerState<_NewBusinessSheet> {
                           width: 18,
                           height: 18,
                           child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.black))
+                              strokeWidth: 2, color: Colors.white))
                       : const Text('Crear'),
                 ),
               ),

@@ -68,6 +68,10 @@ class _AuthActionScreenState extends ConsumerState<AuthActionScreen> {
       setState(() => _error = 'Mínimo 6 caracteres');
       return;
     }
+    if (pass.length > 128) {
+      setState(() => _error = 'Contraseña demasiado larga (máx 128 caracteres)');
+      return;
+    }
     if (pass != _confirmCtrl.text) {
       setState(() => _error = 'Las contraseñas no coinciden');
       return;
@@ -241,7 +245,7 @@ class _AuthActionScreenState extends ConsumerState<AuthActionScreen> {
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.black))
+                          strokeWidth: 2, color: Colors.white))
                   : const Text('Guardar contraseña'),
             ),
           ],

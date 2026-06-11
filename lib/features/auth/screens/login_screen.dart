@@ -167,8 +167,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     labelText: 'Correo electrónico',
                     prefixIcon: Icon(Icons.email_outlined),
                   ),
-                  validator: (v) =>
-                      v?.contains('@') == true ? null : 'Correo inválido',
+                  validator: (v) {
+                    final email = v?.trim() ?? '';
+                    final ok = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]{2,}$').hasMatch(email);
+                    return ok ? null : 'Correo inválido';
+                  },
                 ),
                 const SizedBox(height: 16),
                 TextFormField(

@@ -118,9 +118,9 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
         businessId: _existingProduct!.businessId,
         name: _nameCtrl.text.trim(),
         barcode: _hasBarcode ? _barcodeCtrl.text.trim() : null,
-        price: double.parse(_priceCtrl.text),
-        cost: _costCtrl.text.isNotEmpty ? double.tryParse(_costCtrl.text) : null,
-        stock: int.parse(_stockCtrl.text),
+        price: (double.tryParse(_priceCtrl.text) ?? 0).abs(),
+        cost: _costCtrl.text.isNotEmpty ? (double.tryParse(_costCtrl.text) ?? 0).abs() : null,
+        stock: (int.tryParse(_stockCtrl.text) ?? 0).abs(),
         minStock: int.tryParse(_minStockCtrl.text) ?? AppConstants.defaultMinStock,
         category: _categoryCtrl.text.trim().isEmpty ? null : _categoryCtrl.text.trim(),
         hasBarcode: _hasBarcode,
@@ -132,9 +132,9 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
       await notifier.addProduct(
         name: _nameCtrl.text.trim(),
         barcode: _hasBarcode ? _barcodeCtrl.text.trim() : null,
-        price: double.parse(_priceCtrl.text),
-        cost: _costCtrl.text.isNotEmpty ? double.tryParse(_costCtrl.text) : null,
-        stock: int.parse(_stockCtrl.text),
+        price: (double.tryParse(_priceCtrl.text) ?? 0).abs(),
+        cost: _costCtrl.text.isNotEmpty ? (double.tryParse(_costCtrl.text) ?? 0).abs() : null,
+        stock: (int.tryParse(_stockCtrl.text) ?? 0).abs(),
         minStock: int.tryParse(_minStockCtrl.text) ?? AppConstants.defaultMinStock,
         category: _categoryCtrl.text.trim().isEmpty ? null : _categoryCtrl.text.trim(),
       );
@@ -308,7 +308,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                       icon: const Icon(Icons.qr_code_scanner),
                       style: IconButton.styleFrom(
                         backgroundColor: AppTheme.primary,
-                        foregroundColor: Colors.black,
+                        foregroundColor: Colors.white,
                         minimumSize: const Size(52, 52),
                       ),
                     ),
@@ -321,7 +321,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                 child: state.isLoading
                     ? const SizedBox(
                         height: 20, width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                     : Text(isEdit ? 'Guardar cambios' : 'Agregar producto'),
               ),
             ],

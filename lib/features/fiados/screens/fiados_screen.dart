@@ -181,7 +181,7 @@ class _ClientTile extends StatelessWidget {
         leading: CircleAvatar(
           backgroundColor: AppTheme.warning.withValues(alpha: 0.15),
           child: Text(
-            client.name.substring(0, 1).toUpperCase(),
+            client.name.isNotEmpty ? client.name.substring(0, 1).toUpperCase() : '?',
             style: const TextStyle(color: AppTheme.warning, fontWeight: FontWeight.bold),
           ),
         ),

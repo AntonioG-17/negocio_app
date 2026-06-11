@@ -187,7 +187,7 @@ class _ChangePasswordSheetState extends ConsumerState<_ChangePasswordSheet> {
                           width: 18,
                           height: 18,
                           child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.black))
+                              strokeWidth: 2, color: Colors.white))
                       : const Text('Guardar'),
                 ),
               ),
