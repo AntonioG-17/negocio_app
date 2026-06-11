@@ -33,9 +33,25 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     // Solo lectura para trabajadores y para el CEO en preview.
     final readOnly = role == UserRole.worker || ref.watch(isCeoPreviewProvider);
 
+    // Valor total del inventario (suma de precio × stock de todos los productos)
+    final totalInventoryValue = products.valueOrNull?.fold<double>(
+          0, (acc, p) => acc + p.price * p.stock) ?? 0;
+    final totalProducts = products.valueOrNull?.length ?? 0;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Inventario'),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Inventario'),
+            if (totalProducts > 0)
+              Text(
+                '$totalProducts productos · ${formatCurrency(totalInventoryValue)}',
+                style: const TextStyle(
+                    fontSize: 12, color: AppTheme.onSurfaceMuted),
+              ),
+          ],
+        ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(60),
           child: Padding(
@@ -153,11 +169,18 @@ class _ProductTile extends ConsumerWidget {
               style: const TextStyle(
                   color: AppTheme.primary,
                   fontWeight: FontWeight.bold,
-                  fontSize: 16),
+                  fontSize: 15),
+            ),
+            // Valor total en inventario (precio × stock)
+            Text(
+              'Total: ${formatCurrency(product.price * product.stock)}',
+              style: const TextStyle(
+                  fontSize: 11, color: AppTheme.onSurfaceMuted),
             ),
             if (product.category != null)
               Text(product.category!,
-                  style: const TextStyle(fontSize: 11, color: AppTheme.onSurfaceMuted)),
+                  style: const TextStyle(
+                      fontSize: 11, color: AppTheme.onSurfaceMuted)),
           ],
         ),
         onTap: readOnly ? null : () => context.go('/inventory/edit/${product.id}'),

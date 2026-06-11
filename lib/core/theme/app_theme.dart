@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  static const Color primary = Color(0xFF00C896);
-  static const Color primaryDark = Color(0xFF00A87A);
+  // Azul profesional — más confiable y serio que el verde mint original.
+  static const Color primary = Color(0xFF4F7FFA);
+  static const Color primaryDark = Color(0xFF3B6FE8);
   static const Color background = Color(0xFF0F1117);
   static const Color surface = Color(0xFF1A1D27);
   static const Color surfaceVariant = Color(0xFF252836);
@@ -11,7 +12,7 @@ class AppTheme {
   static const Color onSurfaceMuted = Color(0xFF8B8FA8);
   static const Color error = Color(0xFFFF5252);
   static const Color warning = Color(0xFFFFB800);
-  static const Color success = Color(0xFF00C896);
+  static const Color success = Color(0xFF22C55E);
 
   static ThemeData get dark {
     return ThemeData(
@@ -20,7 +21,7 @@ class AppTheme {
       scaffoldBackgroundColor: background,
       colorScheme: const ColorScheme.dark(
         primary: primary,
-        onPrimary: Colors.black,
+        onPrimary: Colors.white,
         secondary: primaryDark,
         surface: surface,
         onSurface: onSurface,
@@ -28,20 +29,11 @@ class AppTheme {
       ),
       textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme).copyWith(
         headlineLarge: GoogleFonts.inter(
-          color: onSurface,
-          fontSize: 28,
-          fontWeight: FontWeight.bold,
-        ),
+          color: onSurface, fontSize: 28, fontWeight: FontWeight.bold),
         headlineMedium: GoogleFonts.inter(
-          color: onSurface,
-          fontSize: 22,
-          fontWeight: FontWeight.w600,
-        ),
+          color: onSurface, fontSize: 22, fontWeight: FontWeight.w600),
         titleLarge: GoogleFonts.inter(
-          color: onSurface,
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
-        ),
+          color: onSurface, fontSize: 18, fontWeight: FontWeight.w600),
         bodyLarge: GoogleFonts.inter(color: onSurface, fontSize: 16),
         bodyMedium: GoogleFonts.inter(color: onSurfaceMuted, fontSize: 14),
       ),
@@ -50,10 +42,7 @@ class AppTheme {
         elevation: 0,
         centerTitle: false,
         titleTextStyle: GoogleFonts.inter(
-          color: onSurface,
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
-        ),
+          color: onSurface, fontSize: 20, fontWeight: FontWeight.w600),
         iconTheme: const IconThemeData(color: onSurface),
       ),
       cardTheme: CardThemeData(
@@ -67,7 +56,7 @@ class AppTheme {
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: primary,
-          foregroundColor: Colors.black,
+          foregroundColor: Colors.white,
           minimumSize: const Size(double.infinity, 52),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           textStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 16),
@@ -97,7 +86,7 @@ class AppTheme {
       dividerColor: surfaceVariant,
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
         backgroundColor: primary,
-        foregroundColor: Colors.black,
+        foregroundColor: Colors.white,
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: surfaceVariant,

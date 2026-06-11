@@ -123,23 +123,42 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.fromLTRB(28, 0, 28, 28),
           child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 60),
-                Text(
-                  'Bienvenido',
-                  style: Theme.of(context).textTheme.headlineLarge,
+                const SizedBox(height: 56),
+                // Logo + nombre de la app
+                Center(
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 72, height: 72,
+                        decoration: BoxDecoration(
+                          color: AppTheme.primary.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: AppTheme.primary.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: const Icon(Icons.storefront_outlined,
+                            color: AppTheme.primary, size: 38),
+                      ),
+                      const SizedBox(height: 14),
+                      Text('NegocioApp',
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineMedium
+                              ?.copyWith(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 4),
+                      Text('Sistema de gestión para tu negocio',
+                          style: Theme.of(context).textTheme.bodyMedium),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  'Inicia sesión en tu negocio',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-                const SizedBox(height: 40),
+                const SizedBox(height: 44),
                 TextFormField(
                   controller: _emailCtrl,
                   keyboardType: TextInputType.emailAddress,
@@ -177,7 +196,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             height: 20,
                             width: 20,
                             child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.black),
+                                strokeWidth: 2, color: Colors.white),
                           )
                         : const Text('Iniciar sesión'),
                   ),
